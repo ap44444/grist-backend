@@ -1,0 +1,62 @@
+from django.contrib import admin
+from import_export import resources, fields
+from import_export.widgets import ForeignKeyWidget
+from import_export.admin import ImportExportModelAdmin
+from .models import (
+    Ingredient, Recipe, WeeklyPlan, DailyPlan, CustomUser,
+    ShoppingList, ShoppingListItem, ChatMessage, PriceUpdate,
+    RecipeIngredient
+)
+
+# --- 1. SMART RESOURCES (The Translation Layer) ---
+
+# This handles the complex "Recipe <-> Ingredient" link
+class RecipeIngredientResource(resources.ModelResource):
+    # Instead of asking for an ID, we ask for the Recipe Title
+    recipe = fields.Field(
+        column_name='recipe_name',
+        attribute='recipe',
+        widget=ForeignKeyWidget(Recipe, 'title')
+    )
+    # Instead of asking for an ID, we ask for the Ingredient Name
+    ingredient = fields.Field(
+        column_name='ingredient_name',
+        attribute='ingredient',
+        widget=ForeignKeyWidget(Ingredient, 'name')
+    )
+
+    class Meta:
+        model = RecipeIngredient
+        # These are the columns she needs in her CSV
+        fields = ('recipe', 'ingredient', 'quantity_grams')
+        # This allows importing without a primary key ID column
+        import_id_fields = ('recipe', 'ingredient')
+
+# --- 2. ADMIN VIEWS ---
+
+@admin.register(Ingredient)
+class IngredientAdmin(ImportExportModelAdmin):
+    list_display = ('name', 'price_lkr', 'calories', 'is_local')
+    search_fields = ('name',)
+    list_editable = ('price_lkr', 'is_local')
+
+@admin.register(Recipe)
+class RecipeAdmin(ImportExportModelAdmin):
+    list_display = ('title', 'prep_time_mins')
+    search_fields = ('title',)
+
+# Register the "Linker" table so she can upload the connections
+@admin.register(RecipeIngredient)
+class RecipeIngredientAdmin(ImportExportModelAdmin):
+    resource_class = RecipeIngredientResource
+    list_display = ('recipe', 'ingredient', 'quantity_grams')
+    list_filter = ('recipe',)
+
+# --- 3. STANDARD REGISTRATIONS ---
+admin.site.register(WeeklyPlan)
+admin.site.register(DailyPlan)
+admin.site.register(CustomUser)
+admin.site.register(ShoppingList)
+admin.site.register(ShoppingListItem)
+admin.site.register(ChatMessage)
+admin.site.register(PriceUpdate)
