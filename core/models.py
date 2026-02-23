@@ -52,9 +52,11 @@ class Substitution(models.Model):
 
 class Recipe(models.Model):
     title = models.CharField(max_length=200)
+    calories = models.IntegerField()
     instructions = models.TextField()
-    prep_time_mins = models.IntegerField()
+    prep_time_mins = models.IntegerField(blank=True, null=True)
     image_url = models.URLField(blank=True)
+    is_ai_generated = models.BooleanField(default=False)
 
     def __str__(self):
         return self.title
@@ -63,7 +65,8 @@ class Recipe(models.Model):
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
-    quantity_grams = models.DecimalField(max_digits=6, decimal_places=2)
+    quantity = models.FloatField()
+    unit = models.CharField(max_length=50, default='g')
 
 
 # --- MODULE 3: MEAL PLANS ---

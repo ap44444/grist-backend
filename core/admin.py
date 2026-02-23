@@ -49,7 +49,7 @@ class RecipeAdmin(ImportExportModelAdmin):
 @admin.register(RecipeIngredient)
 class RecipeIngredientAdmin(ImportExportModelAdmin):
     resource_class = RecipeIngredientResource
-    list_display = ('recipe', 'ingredient', 'quantity_grams')
+    list_display = ('recipe', 'ingredient', 'quantity','unit')
     list_filter = ('recipe',)
 
 # --- 3. STANDARD REGISTRATIONS ---
