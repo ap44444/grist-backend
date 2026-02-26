@@ -27,3 +27,42 @@ class GeneratedRecipe(BaseModel):
     prep_time_mins: int
     instructions: str = Field(description="Step by step cooking instructions")
     ingredients: List[GeneratedIngredient]
+
+#getting the API key fron the .env file
+load_dotenv()
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+# Fetch recipe data from OpenAI based on user constraints
+def generate_and_save_meal(target_calories, allergies, meal_type="lunch"):
+    prompt = f"""
+    You are an expert Sri Lankan nutritionist. Generate a single {meal_type} recipe.
+    Constraints:
+    - Target Calories: Around {target_calories} kcal
+    - Allergies to avoid: {allergies}
+    - Cuisine: Authentic Sri Lankan or highly adaptable local ingredients.
+
+    IMPORTANT: You must calculate accurate macros per 100g for each ingredient, and estimate the current Sri Lankan market price (LKR).
+    """
+
+    try:
+        print("Sending request to OpenAI API...")
+
+        # Force structured JSON response matching GeneratedRecipe
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a backend JSON data generator."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format=GeneratedRecipe,
+        )
+
+        ai_recipe = completion.choices[0].message.parsed
+        print(f"Success! AI generated: {ai_recipe.title}")
+
+        # TODO: Integrate DB save operations
+        return ai_recipe
+
+    except Exception as e:
+        print(f"AI API Failed: {e}")
+        return None
