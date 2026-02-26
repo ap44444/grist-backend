@@ -28,7 +28,7 @@ class RecipeIngredientResource(resources.ModelResource):
     class Meta:
         model = RecipeIngredient
         # These are the columns she needs in her CSV
-        fields = ('recipe', 'ingredient', 'quantity_grams')
+        fields = ('recipe', 'ingredient', 'quantity', 'unit')
         # This allows importing without a primary key ID column
         import_id_fields = ('recipe', 'ingredient')
 
