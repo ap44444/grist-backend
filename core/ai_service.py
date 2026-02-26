@@ -60,8 +60,41 @@ def generate_and_save_meal(target_calories, allergies, meal_type="lunch"):
         ai_recipe = completion.choices[0].message.parsed
         print(f"Success! AI generated: {ai_recipe.title}")
 
-        # TODO: Integrate DB save operations
-        return ai_recipe
+        # --- DATABASE INJECTION ---
+        # 1. Save the Recipe
+        new_recipe = Recipe.objects.create(
+            title=ai_recipe.title,
+            calories=ai_recipe.total_calories,
+            prep_time_mins=ai_recipe.prep_time_mins,
+            instructions=ai_recipe.instructions,
+            is_ai_generated=True
+        )
+
+        # 2. Save Ingredients and Link Them
+        for item in ai_recipe.ingredients:
+            clean_name = item.name.lower().strip()
+
+            ingredient_obj, created = Ingredient.objects.get_or_create(
+                name=clean_name,
+                defaults={
+                    'calories': item.calories_per_100g,
+                    'protein': item.protein,
+                    'carbs': item.carbs,
+                    'fats': item.fats,
+                    'price_lkr': item.price_lkr,
+                    'is_local': item.is_local
+                }
+            )
+
+            RecipeIngredient.objects.create(
+                recipe=new_recipe,
+                ingredient=ingredient_obj,
+                quantity=item.quantity,
+                unit=item.unit
+            )
+
+        print(f"Saved '{ai_recipe.title}' to DB!")
+        return new_recipe
 
     except Exception as e:
         print(f"AI API Failed: {e}")
