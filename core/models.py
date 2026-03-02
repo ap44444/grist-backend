@@ -127,5 +127,11 @@ class UserProfile(models.Model):
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
     date_of_birth = models.DateField(null=True, blank=True)
     country = models.CharField(max_length=100)
+    # physical measurements and fitness goals
+    weight = models.FloatField(null=True, blank=True)
+    height = models.FloatField(null=True, blank=True)
+    primary_goal = models.CharField(max_length=50, blank=True)
+    activity_level = models.CharField(max_length=50, blank=True)
+
     def __str__(self):
         return f"{self.user.username}'s Profile"
