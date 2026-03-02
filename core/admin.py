@@ -5,7 +5,7 @@ from import_export.admin import ImportExportModelAdmin
 from .models import (
     Ingredient, Recipe, WeeklyPlan, DailyPlan, CustomUser,
     ShoppingList, ShoppingListItem, ChatMessage, PriceUpdate,
-    RecipeIngredient
+    RecipeIngredient,UserProfile
 )
 
 # --- 1. SMART RESOURCES (The Translation Layer) ---
@@ -51,6 +51,11 @@ class RecipeIngredientAdmin(ImportExportModelAdmin):
     resource_class = RecipeIngredientResource
     list_display = ('recipe', 'ingredient', 'quantity','unit')
     list_filter = ('recipe',)
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'gender', 'country', 'primary_goal', 'activity_level')
+    search_fields = ('user__username', 'country')
 
 # --- 3. STANDARD REGISTRATIONS ---
 admin.site.register(WeeklyPlan)
