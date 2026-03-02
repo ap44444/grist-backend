@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
 from pgvector.django import VectorField
-
+from django.contrib.auth.models import User
 
 # --- MODULE 1: USERS ---
 class CustomUser(AbstractUser):
@@ -117,3 +117,15 @@ class PriceUpdate(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)  # Who reported the price
     new_price = models.DecimalField(max_digits=10, decimal_places=2)
     reported_at = models.DateTimeField(auto_now_add=True)
+
+
+class UserProfile(models.Model):
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    # Demographics
+    GENDER_CHOICES = [('Male', 'Male'), ('Female', 'Female')]
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
+    date_of_birth = models.DateField(null=True, blank=True)
+    country = models.CharField(max_length=100)
+    def __str__(self):
+        return f"{self.user.username}'s Profile"
