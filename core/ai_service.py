@@ -44,6 +44,8 @@ def generate_and_save_meal(target_calories, allergies, meal_type="lunch"):
             1. A lean protein source. 
             2. A dedicated complex local carbohydrate (e.g., traditional red rice, kurakkan roti, bathala/sweet potato, or manioc). 
             3. A vegetable/green side (e.g., mallum, sambol, or spiced veg). 
+        - FLAVOR, SPICES & MOISTURE (CRITICAL): Sri Lankan food is never bland or bone-dry. You MUST explicitly include standard aromatics (onions, garlic, ginger, curry leaves, pandan) and spices (roasted/unroasted curry powder, turmeric, chili, black pepper, salt). Do not serve dry rice with dry meat. You MUST include a healthy, low-calorie wet component (e.g., a light spiced gravy/hodi using tomato or thin milk, a wet marinade, or a juicy sambol) so the meal is enjoyable to eat.
+        - REALISTIC PORTIONS: Do not suggest eating 150g+ of raw leaves for a mallum. Keep ingredient proportions realistic and appetizing for a single human serving.
           Do NOT generate a meal that is missing a dedicated carb component.
         - CULINARY HARMONY & AUTHENTICITY: Use ingredients in their traditional, culturally authentic contexts. Pairings must make logical culinary sense.
         - COOKING TECHNIQUES: Heavily recommend healthy but intensely flavorful preparation methods like charring, roasting, traditional clay pot simmering with goraka, or grilling.
