@@ -60,7 +60,7 @@ class RecipeIngredient(models.Model):
 
 # --- MODULE 3: MEAL PLANS ---
 class WeeklyPlan(models.Model):
-    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    user = models.ForeignKey('UserProfile', on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
     total_cost_lkr = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -80,7 +80,7 @@ class MealSlot(models.Model):
 
 # --- MODULE 4: EXTRAS ---
 class ConsultationRequest(models.Model):
-    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    user = models.ForeignKey('UserProfile', on_delete=models.CASCADE)
     dietician = models.ForeignKey(DieticianProfile, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
