@@ -132,6 +132,15 @@ class UserProfile(models.Model):
     height = models.FloatField(null=True, blank=True)
     primary_goal = models.CharField(max_length=50, blank=True)
     activity_level = models.CharField(max_length=50, blank=True)
+    # Diet & Health
+    dietary_preference = models.CharField(max_length=50, default="None")
+    meals_per_day = models.IntegerField(default=3)
+
+    # JSONFields to store the Kotlin List<String>
+    allergies = models.JSONField(default=list, blank=True)
+    foods_to_avoid = models.JSONField(default=list, blank=True)
+    medical_conditions = models.JSONField(default=list, blank=True)
+    medications = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return f"{self.user.username}'s Profile"
