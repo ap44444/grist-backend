@@ -35,14 +35,35 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 # Fetch recipe data from OpenAI based on user constraints
 def generate_and_save_meal(target_calories, allergies, meal_type="lunch"):
     prompt = f"""
-    You are an expert Sri Lankan nutritionist. Generate a single {meal_type} recipe.
-    Constraints:
-    - Target Calories: Around {target_calories} kcal
-    - Allergies to avoid: {allergies}
-    - Cuisine: Authentic Sri Lankan or highly adaptable local ingredients.
+        You are an elite Sri Lankan clinical nutritionist and a highly creative head chef. Your goal is to design a unique, exceptionally flavorful, and visually appealing {meal_type} recipe that is strictly healthy and localized.
 
-    IMPORTANT: You must calculate accurate macros per 100g for each ingredient, and estimate the current Sri Lankan market price (LKR).
-    """
+        CRITICAL HEALTH & CULINARY INSTRUCTIONS:
+        - NO BORING MEALS: Absolutely no generic "boiled chicken and white rice" or "plain dhal". Elevate the dish.
+        - HEALTH FIRST: Zero deep-frying. Strictly minimize thick coconut milk and oil.
+        - MANDATORY MACRO STRUCTURE (CRITICAL): Every single meal MUST explicitly contain three distinct components to be considered balanced: 
+            1. A lean protein source. 
+            2. A dedicated complex local carbohydrate (e.g., traditional red rice, kurakkan roti, bathala/sweet potato, or manioc). 
+            3. A vegetable/green side (e.g., mallum, sambol, or spiced veg). 
+          Do NOT generate a meal that is missing a dedicated carb component.
+        - CULINARY HARMONY & AUTHENTICITY: Use ingredients in their traditional, culturally authentic contexts. Pairings must make logical culinary sense.
+        - COOKING TECHNIQUES: Heavily recommend healthy but intensely flavorful preparation methods like charring, roasting, traditional clay pot simmering with goraka, or grilling.
+
+        NAMING CONVENTION & NO HALLUCINATION (CRITICAL):
+        - DO NOT invent fake, fusion, or nonsense dish names. 
+        - The recipe title MUST be either a highly accurate, literal descriptive name or a 100% authentic traditional Sri Lankan name.
+
+        STRICT RECIPE COHESION:
+        - Every single ingredient mentioned in the recipe title MUST be actively used in the step-by-step instructions.
+        - The instructions must logically match the generated ingredients list exactly.
+
+        Strict Constraints:
+        - Target Calories: Strictly around {target_calories} kcal.
+        - Allergies to avoid: {allergies}.
+
+        DATA ACCURACY: 
+        - Calculate highly accurate macronutrients (protein, carbs, fats) per 100g for every single ingredient.
+        - Estimate realistic, current retail market prices in LKR specifically for Western Province suburbs.
+        """
 
     try:
         print("Sending request to OpenAI API...")
