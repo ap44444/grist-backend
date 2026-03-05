@@ -33,10 +33,27 @@ load_dotenv()
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Fetch recipe data from OpenAI based on user constraints
-def generate_and_save_meal(target_calories, allergies, meal_type="lunch"):
-    prompt = f"""
-        You are an elite Sri Lankan clinical nutritionist and a highly creative head chef. Your goal is to design a unique, exceptionally flavorful, and visually appealing {meal_type} recipe that is strictly healthy and localized.
+def generate_and_save_meal(user_profile, meal_type="lunch"):
+    #  Gather all the data from the Kotlin frontend
+    target_calories = getattr(user_profile, 'target_calories', 600)  # Teammate's calculated value
+    allergies = ", ".join(user_profile.allergies) if user_profile.allergies else "None"
+    avoid_foods = ", ".join(user_profile.foods_to_avoid) if user_profile.foods_to_avoid else "None"
+    medical = ", ".join(user_profile.medical_conditions) if user_profile.medical_conditions else "None"
+    goal = user_profile.primary_goal
+    activity = user_profile.activity_level
 
+    prompt = f"""
+        You are an elite Sri Lankan clinical nutritionist...
+
+        USER HEALTH PROFILE:
+        - Primary Goal: {goal}
+        - Activity Level: {activity}
+        - Medical Conditions to consider: {medical}
+
+        STRICT CONSTRAINTS:
+        - Target Calories: {target_calories} kcal.
+        - Mandatory Exclusions (Allergies): {allergies}.
+        - User Dislikes (Avoid): {avoid_foods}.
         CRITICAL HEALTH & CULINARY INSTRUCTIONS:
         - NO BORING MEALS: Absolutely no generic "boiled chicken and white rice" or "plain dhal". Elevate the dish.
         - HEALTH FIRST: Zero deep-frying. Strictly minimize thick coconut milk and oil.
