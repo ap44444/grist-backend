@@ -3,6 +3,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from typing import List
+from duckduckgo_search import DDGS
 
 # Importing the Django models
 
@@ -28,12 +29,32 @@ class GeneratedRecipe(BaseModel):
     instructions: str = Field(description="Step by step cooking instructions")
     ingredients: List[GeneratedIngredient]
 
+
+def get_web_image(recipe_title):
+    try:
+        print(f"Searching the web for an image of: {recipe_title}...")
+        search_query = f"{recipe_title} Sri Lankan food high quality plate"
+
+        # Grab the top 1 image result from the web
+        results = DDGS().images(search_query, max_results=1)
+
+        if results:
+            image_url = results[0]['image']
+            print("Successfully found web image!")
+            return image_url
+
+    except Exception as e:
+        print(f"Web search failed: {e}")
+
+    return "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"
+
 #getting the API key fron the .env file
 load_dotenv()
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Fetch recipe data from OpenAI based on user constraints
 def generate_and_save_meal(user_profile, meal_type="lunch"):
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
     #  Gather all the data from the Kotlin frontend
     target_calories = getattr(user_profile, 'target_calories', 600)  # Teammate's calculated value
     allergies = ", ".join(user_profile.allergies) if user_profile.allergies else "None"
@@ -100,6 +121,10 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         ai_recipe = completion.choices[0].message.parsed
         print(f"Success! AI generated: {ai_recipe.title}")
 
+        image_url = get_web_image(ai_recipe.title)
+
+
+
         # --- DATABASE INJECTION ---
         # 1. Save the Recipe
         new_recipe = Recipe.objects.create(
@@ -134,7 +159,11 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
             )
 
         print(f"Saved '{ai_recipe.title}' to DB!")
-        return new_recipe
+        # Convert to dictionary and attach the image URL
+        final_recipe_data = ai_recipe.model_dump()
+        final_recipe_data['image_url'] = image_url
+
+        return final_recipe_data
 
     except Exception as e:
         print(f"AI API Failed: {e}")
