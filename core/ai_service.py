@@ -33,7 +33,7 @@ class GeneratedRecipe(BaseModel):
 def get_web_image(recipe_title):
     try:
         print(f"Searching the web for an image of: {recipe_title}...")
-        search_query = f"{recipe_title} Sri Lankan food high quality plate"
+        search_query = f"{recipe_title} Sri Lankan food plate"
 
         # Grab the top 1 image result from the web
         results = DDGS().images(search_query, max_results=1)

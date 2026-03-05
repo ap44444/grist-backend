@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
 from pgvector.django import VectorField
 
-
 # --- MODULE 1: USERS ---
 class CustomUser(AbstractUser):
     is_dietician = models.BooleanField(default=False)
