@@ -128,3 +128,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://grist-diet-app-production.up.railway.app',
     'https://*.127.0.0.1'
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}

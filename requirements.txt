@@ -14,3 +14,4 @@ tablib==3.9.0
 whitenoise==6.11.0
 djangorestframework
 openai
+djangorestframework-simplejwt
