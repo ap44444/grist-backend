@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # 2. Load the .env file
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-# 3. Use os.getenv to pull from your .env file
+# 3. Use os.getenv to pull from .env file
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG') == 'True'

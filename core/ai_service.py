@@ -1,5 +1,6 @@
 import os
 import requests
+import json
 from openai import OpenAI
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -30,36 +31,35 @@ class GeneratedRecipe(BaseModel):
     ingredients: List[GeneratedIngredient]
 
 
-def get_google_image(recipe_title):
-    api_key = os.getenv("GOOGLE_API_KEY")
-    cx = os.getenv("SEARCH_ENGINE_ID")
-
-    # Adding "Sri Lankan food" guarantees we don't get random unrelated pictures
+def get_web_image(recipe_title):
+    api_key = os.getenv("SERPER_API_KEY")
     search_query = f"{recipe_title} Sri Lankan food"
-    url = "https://www.googleapis.com/customsearch/v1"
+    url = "https://google.serper.dev/images"
 
-    params = {
-        'q': search_query,
-        'cx': cx,
-        'key': api_key,
-        'searchType': 'image',
-        'num': 1
+    payload = json.dumps({
+        "q": search_query,
+        "num": 1
+    })
+
+    headers = {
+        'X-API-KEY': api_key,
+        'Content-Type': 'application/json'
     }
 
     try:
-        response = requests.get(url, params=params, timeout=5)
+        response = requests.post(url, headers=headers, data=payload, timeout=5)
         response.raise_for_status()
         data = response.json()
 
-        if 'items' in data:
-            image_url = data['items'][0]['link']
+        if 'images' in data and len(data['images']) > 0:
+            image_url = data['images'][0]['imageUrl']
             print(f" Image Found: {image_url}")
             return image_url
 
     except Exception as e:
-        print(f" Google Image Error: {e}")
+        print(f" Serper Image Error: {e}")
 
-    # Safe fallback image if the API runs out of quota or fails
+    # Safe fallback image
     return "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"
 #getting the API key fron the .env file
 load_dotenv()
@@ -134,7 +134,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         ai_recipe = completion.choices[0].message.parsed
         print(f"Success! AI generated: {ai_recipe.title}")
 
-        recipe_image = get_google_image(ai_recipe.title)
+        recipe_image = get_web_image(ai_recipe.title)
 
 
         # --- DATABASE INJECTION ---
@@ -172,9 +172,10 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
 
         print(f"Saved '{ai_recipe.title}' to DB!")
         # Convert to dictionary and attach the image URL
-        # ---> ADD THE IMAGE TO THE DICTIONARY FOR KOTLIN <---
+        #  ADD THE IMAGE TO THE DICTIONARY FOR KOTLIN
         final_recipe_data = ai_recipe.model_dump()
         final_recipe_data['image_url'] = recipe_image
+        final_recipe_data['recipe_id'] = new_recipe.id
         return final_recipe_data
 
     except Exception as e:

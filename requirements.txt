@@ -15,4 +15,4 @@ whitenoise==6.11.0
 djangorestframework
 openai
 djangorestframework-simplejwt
-duckduckgo-search
+requests

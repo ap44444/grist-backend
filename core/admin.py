@@ -45,7 +45,7 @@ class RecipeAdmin(ImportExportModelAdmin):
     list_display = ('title', 'prep_time_mins')
     search_fields = ('title',)
 
-# Register the "Linker" table so she can upload the connections
+# Register the "Linker" table
 @admin.register(RecipeIngredient)
 class RecipeIngredientAdmin(ImportExportModelAdmin):
     resource_class = RecipeIngredientResource
