@@ -38,7 +38,8 @@ def get_web_image(recipe_title):
 
     payload = json.dumps({
         "q": search_query,
-        "num": 1
+        "num": 1,
+        "gl": "lk"  # Sets location to Sri Lanka for better results
     })
 
     headers = {
@@ -47,19 +48,21 @@ def get_web_image(recipe_title):
     }
 
     try:
-        response = requests.post(url, headers=headers, data=payload, timeout=5)
-        response.raise_for_status()
-        data = response.json()
+        response = requests.post(url, headers=headers, data=payload, timeout=10)
 
-        if 'images' in data and len(data['images']) > 0:
-            image_url = data['images'][0]['imageUrl']
-            print(f" Image Found: {image_url}")
-            return image_url
+        if response.status_code == 200:
+            data = response.json()
+            if 'images' in data and len(data['images']) > 0:
+                image_url = data['images'][0]['imageUrl']
+                print(f" Image Found: {image_url}")
+                return image_url
+        else:
+            print(f" Serper Error {response.status_code}: {response.text}")
 
     except Exception as e:
-        print(f" Serper Image Error: {e}")
+        print(f" Serper Connection Error: {e}")
 
-    # Safe fallback image
+    # Fallback image
     return "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"
 #getting the API key fron the .env file
 load_dotenv()
