@@ -25,20 +25,21 @@ class GeneratedIngredient(BaseModel):
 
 class GeneratedRecipe(BaseModel):
     title: str = Field(description="Name of the dish")
+    image_search_query: str = Field(description="A highly generic 3-word food category to guarantee finding a stock photo (e.g., 'Sri Lankan Rice Curry', 'Sri Lankan Roti Plate'). DO NOT use specific ingredient names.")
     total_calories: int = Field(description="Total calories for the entire prepared meal")
     prep_time_mins: int
     instructions: str = Field(description="Step by step cooking instructions")
     ingredients: List[GeneratedIngredient]
 
 
-def get_web_image(recipe_title):
+def get_web_image(optimized_query):
     api_key = os.getenv("SERPER_API_KEY")
-    search_query = f"{recipe_title} Sri Lankan food"
+    search_query = f"{optimized_query} Sri Lankan food"
     url = "https://google.serper.dev/images"
 
     payload = json.dumps({
         "q": search_query,
-        "num": 1,
+        "num": 10,
         "gl": "lk"  # Sets location to Sri Lanka for better results
     })
 
@@ -52,17 +53,29 @@ def get_web_image(recipe_title):
 
         if response.status_code == 200:
             data = response.json()
-            if 'images' in data and len(data['images']) > 0:
-                image_url = data['images'][0]['imageUrl']
-                print(f" Image Found: {image_url}")
-                return image_url
-        else:
-            print(f" Serper Error {response.status_code}: {response.text}")
+            images = data.get('images', [])
+            for img in images:
+                img_url = img.get('imageUrl', '')
+                # A blocklist of domains that break mobile apps
+                bad_domains = [
+                    "instagram.com",
+                    "pinterest.com",
+                    "facebook.com",
+                    "fbcdn.net",
+                    "fbsbx.com",
+                    "lookaside",
+                    "tiktok.com"
+                ]
+                # If ANY of the bad domains are in the URL, skip it!
+                if any(domain in img_url for domain in bad_domains):
+                    continue
+
+                print(f" Exact Image Found: {img_url}")
+                return img_url
 
     except Exception as e:
-        print(f" Serper Connection Error: {e}")
+        print(f" Serper Error: {e}")
 
-    # Fallback image
     return "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"
 #getting the API key fron the .env file
 load_dotenv()
@@ -91,6 +104,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         - Target Calories: {target_calories} kcal.
         - Mandatory Exclusions (Allergies): {allergies}.
         - User Dislikes (Avoid): {avoid_foods}.
+        
         CRITICAL HEALTH & CULINARY INSTRUCTIONS:
         - NO BORING MEALS: Absolutely no generic "boiled chicken and white rice" or "plain dhal". Elevate the dish.
         - HEALTH FIRST: Zero deep-frying. Strictly minimize thick coconut milk and oil.
@@ -103,7 +117,15 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
           Do NOT generate a meal that is missing a dedicated carb component.
         - CULINARY HARMONY & AUTHENTICITY: Use ingredients in their traditional, culturally authentic contexts. Pairings must make logical culinary sense.
         - COOKING TECHNIQUES: Heavily recommend healthy but intensely flavorful preparation methods like charring, roasting, traditional clay pot simmering with goraka, or grilling.
-
+        
+        IMAGE SEARCH OPTIMIZATION (CRITICAL):
+        - Stock photos for highly customized plate combinations do not exist. 
+        - The 'image_search_query' field MUST be a broad, generic food category so a web scraper can easily find a high-quality stock photo.
+        - DO NOT include specific protein names or local vegetable names in the search query.
+        - Example 1: "Spicy Grilled Chicken with Kurakkan Roti and Mallum" -> "Sri Lankan Roti Plate"
+        - Example 2: "Black Pork Curry with Red Rice" -> "Sri Lankan Rice Curry"
+        - Example 3: "Baked Fish with Sweet Potato Mash" -> "Healthy Sri Lankan plate"
+        
         NAMING CONVENTION & NO HALLUCINATION (CRITICAL):
         - DO NOT invent fake, fusion, or nonsense dish names. 
         - The recipe title MUST be either a highly accurate, literal descriptive name or a 100% authentic traditional Sri Lankan name.
@@ -137,7 +159,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         ai_recipe = completion.choices[0].message.parsed
         print(f"Success! AI generated: {ai_recipe.title}")
 
-        recipe_image = get_web_image(ai_recipe.title)
+        recipe_image = get_web_image(ai_recipe.image_search_query)
 
 
         # --- DATABASE INJECTION ---
