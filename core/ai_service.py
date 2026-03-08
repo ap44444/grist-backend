@@ -1,9 +1,9 @@
 import os
+import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from typing import List
-from duckduckgo_search import DDGS
 
 # Importing the Django models
 
@@ -30,24 +30,37 @@ class GeneratedRecipe(BaseModel):
     ingredients: List[GeneratedIngredient]
 
 
-def get_web_image(recipe_title):
+def get_google_image(recipe_title):
+    api_key = os.getenv("GOOGLE_API_KEY")
+    cx = os.getenv("SEARCH_ENGINE_ID")
+
+    # Adding "Sri Lankan food" guarantees we don't get random unrelated pictures
+    search_query = f"{recipe_title} Sri Lankan food"
+    url = "https://www.googleapis.com/customsearch/v1"
+
+    params = {
+        'q': search_query,
+        'cx': cx,
+        'key': api_key,
+        'searchType': 'image',
+        'num': 1
+    }
+
     try:
-        print(f"Searching the web for an image of: {recipe_title}...")
-        search_query = f"{recipe_title} Sri Lankan food plate"
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
 
-        # Grab the top 1 image result from the web
-        results = DDGS().images(search_query, max_results=1)
-
-        if results:
-            image_url = results[0]['image']
-            print("Successfully found web image!")
+        if 'items' in data:
+            image_url = data['items'][0]['link']
+            print(f" Image Found: {image_url}")
             return image_url
 
     except Exception as e:
-        print(f"Web search failed: {e}")
+        print(f" Google Image Error: {e}")
 
+    # Safe fallback image if the API runs out of quota or fails
     return "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"
-
 #getting the API key fron the .env file
 load_dotenv()
 
@@ -121,8 +134,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         ai_recipe = completion.choices[0].message.parsed
         print(f"Success! AI generated: {ai_recipe.title}")
 
-        image_url = get_web_image(ai_recipe.title)
-
+        recipe_image = get_google_image(ai_recipe.title)
 
 
         # --- DATABASE INJECTION ---
@@ -160,9 +172,9 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
 
         print(f"Saved '{ai_recipe.title}' to DB!")
         # Convert to dictionary and attach the image URL
+        # ---> ADD THE IMAGE TO THE DICTIONARY FOR KOTLIN <---
         final_recipe_data = ai_recipe.model_dump()
-        final_recipe_data['image_url'] = image_url
-
+        final_recipe_data['image_url'] = recipe_image
         return final_recipe_data
 
     except Exception as e:
