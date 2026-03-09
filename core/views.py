@@ -9,6 +9,13 @@ from rest_framework.permissions import AllowAny
 from django.contrib.auth.models import User
 from .serializers import RegisterSerializer
 from core.models import CustomUser
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from .models import GroceryCart, GroceryCartItem
+from .serializers import GroceryCartSerializer, GroceryCartItemSerializer
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -45,3 +52,55 @@ class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+
+
+# 1. READ (GET)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_grocery_cart(request):
+    """Fetches the user's current cart and all items inside it"""
+    cart, created = GroceryCart.objects.get_or_create(user=request.user)
+    serializer = GroceryCartSerializer(cart)
+    return Response(serializer.data)
+
+
+# 2. CREATE (POST)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_cart_item(request):
+    """Adds a new item (either an Ingredient ID or a custom text name)"""
+    cart, created = GroceryCart.objects.get_or_create(user=request.user)
+
+    serializer = GroceryCartItemSerializer(data=request.data)
+    if serializer.is_valid():
+        # Save it and specifically link it to THIS user's cart
+        serializer.save(cart=cart)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# 3. UPDATE (PATCH)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_cart_item(request, item_id):
+    """Updates quantity or ticks the 'is_purchased' checkbox"""
+    cart = get_object_or_404(GroceryCart, user=request.user)
+    item = get_object_or_404(GroceryCartItem, id=item_id, cart=cart)
+
+    # partial=True means the frontend can send JUST the checkbox state, or JUST the quantity
+    serializer = GroceryCartItemSerializer(item, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# 4. DELETE (DELETE)
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_cart_item(request, item_id):
+    """Removes an item completely from the cart"""
+    cart = get_object_or_404(GroceryCart, user=request.user)
+    item = get_object_or_404(GroceryCartItem, id=item_id, cart=cart)
+    item.delete()
+    return Response({"message": "Item deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
