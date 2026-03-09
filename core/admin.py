@@ -1,4 +1,5 @@
 from django.contrib import admin
+from .models import Recipe, Ingredient, GroceryCart, GroceryCartItem
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
@@ -57,7 +58,7 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'gender', 'country', 'primary_goal', 'activity_level')
     search_fields = ('user__username', 'country')
 
-# --- 3. STANDARD REGISTRATIONS ---
+# 3. STANDARD REGISTRATIONS
 admin.site.register(WeeklyPlan)
 admin.site.register(DailyPlan)
 admin.site.register(CustomUser)
@@ -65,3 +66,6 @@ admin.site.register(ShoppingList)
 admin.site.register(ShoppingListItem)
 admin.site.register(ChatMessage)
 admin.site.register(PriceUpdate)
+#GROCERY CART
+admin.site.register(GroceryCart)
+admin.site.register(GroceryCartItem)
