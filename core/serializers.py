@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import UserProfile
 from core.models import CustomUser
+from .models import GroceryCart, GroceryCartItem
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,3 +24,20 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+
+# --- GROCERY CART SERIALIZERS ---
+class GroceryCartItemSerializer(serializers.ModelSerializer):
+    # This automatically runs get_item_name() function so the frontend gets the real text!
+    name = serializers.CharField(source='get_item_name', read_only=True)
+
+    class Meta:
+        model = GroceryCartItem
+        fields = ['id', 'ingredient', 'custom_name', 'name', 'quantity', 'unit', 'is_purchased']
+        read_only_fields = ['cart'] # Security: don't let users assign items to other people's carts
+
+class GroceryCartSerializer(serializers.ModelSerializer):
+    items = GroceryCartItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = GroceryCart
+        fields = ['id', 'updated_at', 'items']
