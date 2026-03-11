@@ -9,8 +9,7 @@ from django.utils import timezone
 
 # Importing the Django models
 
-from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem, MealSlot
-from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem, DailyPlan
+from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem, WeeklyPlan, DailyPlan, MealSlot
 
 
 # Data schemas to enforce strict JSON formatting from the OpenAI API
