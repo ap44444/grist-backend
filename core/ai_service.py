@@ -5,10 +5,12 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from typing import List
+from django.utils import timezone
 
 # Importing the Django models
 
-from core.models import Recipe, Ingredient, RecipeIngredient
+from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem
+from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem, DailyPlan
 
 
 # Data schemas to enforce strict JSON formatting from the OpenAI API
@@ -171,6 +173,25 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
             instructions=ai_recipe.instructions,
             is_ai_generated=True
         )
+        # Grab the user's personal grocery cart (or create a blank one)
+        user_cart, cart_created = GroceryCart.objects.get_or_create(user=user_profile.user)
+        # 1.5 Link to the User's Private Daily Plan
+        today = timezone.now().date()
+
+        # We try to find if they already have a plan for this meal today.
+        # If they don't, we create one.
+        daily_plan, plan_created = DailyPlan.objects.get_or_create(
+            user=user_profile.user,  # Locks it privately to this specific user
+            date=today,
+            meal_type=meal_type,
+            defaults={'recipe': new_recipe}
+        )
+        # If they hit "Regenerate" because they didn't like the first AI meal,
+        # this safely overwrites their old lunch with the new one!
+        if not plan_created:
+            daily_plan.recipe = new_recipe
+            daily_plan.save()
+
 
         # 2. Save Ingredients and Link Them
         for item in ai_recipe.ingredients:
@@ -194,6 +215,23 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
                 quantity=item.quantity,
                 unit=item.unit
             )
+            # the grocery cart
+            cart_item, item_created = GroceryCartItem.objects.get_or_create(
+                cart=user_cart,
+                ingredient=ingredient_obj,
+                defaults={
+                    'quantity': item.quantity,
+                    'unit': item.unit,
+                    'is_purchased': False
+                }
+            )
+
+            # If the ingredient was ALREADY in the cart, just increase the weight!
+            if not item_created:
+                cart_item.quantity += item.quantity
+                # Uncheck the box so they know they need to buy more!
+                cart_item.is_purchased = False
+                cart_item.save()
 
         print(f"Saved '{ai_recipe.title}' to DB!")
         # Convert to dictionary and attach the image URL

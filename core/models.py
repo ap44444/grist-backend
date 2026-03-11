@@ -3,6 +3,8 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
 from pgvector.django import VectorField
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 # --- MODULE 1: USERS ---
 class CustomUser(AbstractUser):
@@ -77,8 +79,14 @@ class MealSlot(models.Model):
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     is_substituted = models.BooleanField(default=False)
 
+    class Meta:
+        unique_together = ('day_plan', 'meal_type')
 
-# --- MODULE 4: EXTRAS ---
+    def __str__(self):
+        return f"{self.day_plan.day_name} - {self.get_meal_type_display()}"
+
+
+#  MODULE 4: EXTRAS
 class ConsultationRequest(models.Model):
     user = models.ForeignKey('UserProfile', on_delete=models.CASCADE)
     dietician = models.ForeignKey(DieticianProfile, on_delete=models.CASCADE)
@@ -124,6 +132,7 @@ class UserProfile(models.Model):
     # Diet & Health
     dietary_preference = models.CharField(max_length=50, default="None")
     meals_per_day = models.IntegerField(default=3)
+    target_calories = models.IntegerField(default=2000, help_text="Daily calorie goal")
 
     # JSONFields to store the Kotlin List<String>
     allergies = models.JSONField(default=list, blank=True)
@@ -134,7 +143,7 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username}'s Profile"
 
-# --- MODULE 5: USER GROCERY CART (CRUD MVP) ---
+#  MODULE 5: USER GROCERY CART
 class GroceryCart(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='grocery_cart')
     updated_at = models.DateTimeField(auto_now=True)
@@ -150,5 +159,23 @@ class GroceryCartItem(models.Model):
     unit = models.CharField(max_length=50)
     is_purchased = models.BooleanField(default=False)
 
+    def __str__(self):
+        if self.ingredient:
+            return f"{self.ingredient.name} ({self.quantity} {self.unit})"
+        return f"Custom Item ({self.quantity} {self.unit})"
+
     def get_item_name(self):
         return self.ingredient.name if self.ingredient else self.custom_name
+
+# "receiver" listens for when a CustomUser is saved
+@receiver(post_save, sender=CustomUser)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        # If a new user was just created, build their profile row immediately
+        UserProfile.objects.get_or_create(user=instance)
+
+@receiver(post_save, sender=CustomUser)
+def save_user_profile(sender, instance, **kwargs):
+    # This ensures that if the User is saved, the Profile is also updated
+    if hasattr(instance, 'profile'):
+        instance.profile.save()

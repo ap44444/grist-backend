@@ -13,6 +13,7 @@ import dj_database_url
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # 1. Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -133,4 +134,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
+}
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # Token lasts 24 hours
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7), # Refresh lasts a week
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
