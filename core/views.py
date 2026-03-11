@@ -16,6 +16,10 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import GroceryCart, GroceryCartItem
 from .serializers import GroceryCartSerializer, GroceryCartItemSerializer
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .ai_service import substitute_ingredient_in_meal
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -104,3 +108,20 @@ def delete_cart_item(request, item_id):
     item = get_object_or_404(GroceryCartItem, id=item_id, cart=cart)
     item.delete()
     return Response({"message": "Item deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_substitution(request, meal_slot_id):
+    # The frontend will send the name of the ingredient they want to remove
+    old_ingredient = request.data.get('ingredient_to_replace')
+
+    if not old_ingredient:
+        return Response({"error": "Please provide 'ingredient_to_replace' in the JSON body."}, status=400)
+
+    result = substitute_ingredient_in_meal(request.user, meal_slot_id, old_ingredient)
+
+    if result.get("status") == "success":
+        return Response(result, status=200)
+    else:
+        return Response(result, status=400)

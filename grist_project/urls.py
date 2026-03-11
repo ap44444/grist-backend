@@ -6,6 +6,8 @@ from core.views import RegisterView
 from django.urls import path
 from core import views
 urlpatterns = [
+    path('api/meals/<int:meal_slot_id>/substitute/', views.request_substitution, name='substitute_ingredient'),
+
     path("admin/", admin.site.urls),
     # The login end point
     path('api/login/', TokenObtainPairView.as_view(), name='login'),
