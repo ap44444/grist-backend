@@ -9,7 +9,7 @@ from django.utils import timezone
 
 # Importing the Django models
 
-from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem
+from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem, MealSlot
 from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem, DailyPlan
 
 
@@ -33,6 +33,11 @@ class GeneratedRecipe(BaseModel):
     instructions: str = Field(description="Step by step cooking instructions")
     ingredients: List[GeneratedIngredient]
 
+class SubstitutedRecipe(BaseModel):
+    new_ingredient_name: str = Field(description="Name of the new local ingredient")
+    reasoning: str = Field(description="Why this is a good, affordable Sri Lankan swap")
+    new_recipe_title: str = Field(description="Updated title of the dish")
+    updated_instructions: str = Field(description="Updated cooking instructions including the new ingredient")
 
 def get_web_image(optimized_query):
     api_key = os.getenv("SERPER_API_KEY")
@@ -244,3 +249,80 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
     except Exception as e:
         print(f"AI API Failed: {e}")
         return None
+
+
+def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+    try:
+        # 1. Find the exact meal slot the user is trying to change
+        meal_slot = MealSlot.objects.get(id=meal_slot_id, day_plan__week_plan__user__user=user)
+        original_recipe = meal_slot.recipe
+
+        # 2. Ask the AI for a localized swap
+        prompt = f"""
+        You are an expert Sri Lankan dietician.
+        A user is making the recipe: "{original_recipe.title}"
+        They need to substitute this ingredient because it is too expensive or hard to find in Sri Lanka: "{old_ingredient_name}"
+
+        Provide a locally available Sri Lankan alternative that:
+        1. Is significantly cheaper or easier to find.
+        2. Closely matches the calorie and macronutrient profile of the original.
+        3. Fits the flavor profile of the dish.
+        """
+
+        print(f"Requesting AI substitution for {old_ingredient_name}...")
+
+        # Force structured JSON response matching SubstitutedRecipe
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a backend JSON data generator."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format=SubstitutedRecipe,
+        )
+
+        ai_data = completion.choices[0].message.parsed
+
+        # 3. Database Magic: Clone and Swap
+        new_recipe = Recipe.objects.create(
+            title=ai_data.new_recipe_title,
+            calories=original_recipe.calories,
+            instructions=ai_data.updated_instructions,
+            prep_time_mins=original_recipe.prep_time_mins,
+            is_ai_generated=True
+        )
+
+        # Map the new recipe to the user's meal slot
+        meal_slot.recipe = new_recipe
+        meal_slot.is_substituted = True
+        meal_slot.save()
+
+        # Handle the Grocery Cart Swap
+        cart, _ = GroceryCart.objects.get_or_create(user=user)
+
+        # Remove the expensive item from their cart
+        GroceryCartItem.objects.filter(
+            cart=cart,
+            ingredient__name__icontains=old_ingredient_name.lower()
+        ).delete()
+
+        # Add the cheap local item to their cart
+        GroceryCartItem.objects.create(
+            cart=cart,
+            custom_name=ai_data.new_ingredient_name,
+            quantity=1,
+            unit="portion"
+        )
+
+        return {
+            "status": "success",
+            "new_recipe": new_recipe.title,
+            "swap_details": ai_data.model_dump()
+        }
+
+    except MealSlot.DoesNotExist:
+        return {"status": "error", "message": "Meal slot not found."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
