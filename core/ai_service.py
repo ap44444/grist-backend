@@ -180,22 +180,47 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         )
         # Grab the user's personal grocery cart (or create a blank one)
         user_cart, cart_created = GroceryCart.objects.get_or_create(user=user_profile.user)
-        # 1.5 Link to the User's Private Daily Plan
-        today = timezone.now().date()
 
-        # We try to find if they already have a plan for this meal today.
-        # If they don't, we create one.
-        daily_plan, plan_created = DailyPlan.objects.get_or_create(
-            user=user_profile.user,  # Locks it privately to this specific user
-            date=today,
-            meal_type=meal_type,
+        # 1.5 Link to the User's Private Plan Hierarchy
+        from datetime import timedelta
+        today = timezone.now().date()
+        day_name_str = today.strftime("%A")  # e.g., "Wednesday"
+
+        # A. Find or create their Weekly Plan
+        week_plan, _ = WeeklyPlan.objects.get_or_create(
+            user=user_profile,
+            defaults={
+                'start_date': today,
+                'end_date': today + timedelta(days=6)
+            }
+        )
+
+        # B. Find or create today's Daily Plan
+        daily_plan, _ = DailyPlan.objects.get_or_create(
+            week_plan=week_plan,
+            day_name=day_name_str
+        )
+
+        # C. Map the Recipe to the MealSlot
+        # Convert the word "lunch" to "L" to match database choices
+        meal_code = 'L'
+        if meal_type.lower() == 'breakfast':
+            meal_code = 'B'
+        elif meal_type.lower() == 'dinner':
+            meal_code = 'D'
+
+        meal_slot, slot_created = MealSlot.objects.get_or_create(
+            day_plan=daily_plan,
+            meal_type=meal_code,
             defaults={'recipe': new_recipe}
         )
-        # If they hit "Regenerate" because they didn't like the first AI meal,
-        # this safely overwrites their old lunch with the new one!
-        if not plan_created:
-            daily_plan.recipe = new_recipe
-            daily_plan.save()
+
+        # If they already had a lunch planned, overwrite it with this fresh AI meal!
+        if not slot_created:
+            meal_slot.recipe = new_recipe
+            meal_slot.is_substituted = False
+            meal_slot.is_consumed = False
+            meal_slot.save()
 
 
         # 2. Save Ingredients and Link Them
