@@ -23,6 +23,7 @@ from .bmi_calculator import calculate_bmi, bmi_category
 from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calories
 from datetime import date
 from .models import UserProfile
+from django.utils import timezone
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -284,3 +285,59 @@ def calculate_and_save_calories(request):
             "target_calories": daily_limit # Their new daily goal
         }
     })
+
+
+# Water tracker
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def track_water(request):
+    profile = request.user.profile
+    today = timezone.now().date()
+    today_name = today.strftime('%A')  # Figures out if it's "Monday", "Tuesday", etc.
+
+    # The app can send how much they drank, but defaults to a 250ml glass if empty
+    amount_ml = request.data.get('amount_ml', 250)
+
+    try:
+        # Look for the daily plan that matches today's day of the week inside their active weekly plan
+        daily_plan = DailyPlan.objects.get(
+            week_plan__user=profile,
+            week_plan__start_date__lte=today,
+            week_plan__end_date__gte=today,
+            day_name=today_name
+        )
+
+        daily_plan.water_consumed_ml += int(amount_ml)
+        daily_plan.save()
+
+        return Response({
+            "status": "success",
+            "message": f"Added {amount_ml}ml of water!",
+            "total_water_ml": daily_plan.water_consumed_ml
+        })
+
+    except DailyPlan.DoesNotExist:
+        return Response({"error": "No active meal plan found for today. Generate a weekly plan first!"}, status=400)
+
+
+# meal tracker
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def track_meal(request, meal_slot_id):
+    try:
+        # The long query ensures a user can't accidentally check off someone else's meal!
+        meal_slot = MealSlot.objects.get(
+            id=meal_slot_id,
+            day_plan__week_plan__user=request.user.profile
+        )
+
+        meal_slot.is_consumed = True
+        meal_slot.save()
+
+        return Response({
+            "status": "success",
+            "message": f"Successfully logged {meal_slot.get_meal_type_display()} as eaten!"
+        })
+
+    except MealSlot.DoesNotExist:
+        return Response({"error": "Meal slot not found."}, status=404)

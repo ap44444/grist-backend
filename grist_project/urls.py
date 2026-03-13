@@ -33,4 +33,8 @@ urlpatterns = [
     path('api/profile/', views.get_profile_data, name='get_profile_data'),
 
     path('api/profile/calculate-targets/', core_views.calculate_and_save_calories, name='calculate_targets'),
+
+    # Daily Tracking Endpoints
+    path('api/track/water/', core_views.track_water, name='track_water'),
+    path('api/track/meal/<int:meal_slot_id>/', core_views.track_meal, name='track_meal'),
 ]
