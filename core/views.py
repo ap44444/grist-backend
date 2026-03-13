@@ -169,7 +169,13 @@ def get_dashboard_data(request):
     weekly_balance = [50, 80, 100, 40, 0, 0, 0]
 
     try:
-        daily_plan = DailyPlan.objects.get(week_plan__user=user_profile, date=today)
+        # Look up the active plan using the date ranges AND the day name
+        daily_plan = DailyPlan.objects.get(
+            week_plan__user=user_profile,
+            week_plan__start_date__lte=today,
+            week_plan__end_date__gte=today,
+            day_name=today_name
+        )
         all_meals_today = daily_plan.meals.all()
 
         # Add up calories from meals they actually pressed "I ate this" on
