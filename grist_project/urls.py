@@ -29,4 +29,6 @@ urlpatterns = [
     path('api/logout/', views.logout_user, name='logout'),
 
     path('api/dashboard/today/', views.get_dashboard_data, name='dashboard_today'),
+
+    path('api/profile/', views.get_profile_data, name='get_profile_data'),
 ]
