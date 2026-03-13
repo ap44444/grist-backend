@@ -24,6 +24,7 @@ from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calo
 from datetime import date
 from .models import UserProfile
 from django.utils import timezone
+from .services import calculate_weekly_progress
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -347,3 +348,16 @@ def track_meal(request, meal_slot_id):
 
     except MealSlot.DoesNotExist:
         return Response({"error": "Meal slot not found."}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_progress_stats(request):
+    profile = request.user.profile
+    timeframe = request.query_params.get('timeframe', 'this_week')
+
+    # 1. Ask the 'Brain' to do the math
+    progress_data = calculate_weekly_progress(profile, timeframe)
+
+    # 2. Return the HTTP Response
+    return Response(progress_data)

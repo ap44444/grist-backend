@@ -131,6 +131,7 @@ class UserProfile(models.Model):
     # physical measurements and fitness goals
     weight = models.FloatField(null=True, blank=True)
     height = models.FloatField(null=True, blank=True)
+    target_weight = models.FloatField(null=True, blank=True)
     primary_goal = models.CharField(max_length=50, blank=True)
     activity_level = models.CharField(max_length=50, blank=True)
     # Diet & Health

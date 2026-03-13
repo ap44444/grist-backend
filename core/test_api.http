@@ -1,0 +1,23 @@
+### 1. Login to get your Token
+POST https://grist-diet-app-production.up.railway.app/api/login/
+Content-Type: application/json
+
+{
+  "username": "andy_jonson",
+  "password": "20080903Mahee!"
+}
+
+> {%
+    // This script catches the token from your live server and saves it!
+    client.global.set("auth_token", response.body.access);
+%}
+
+
+### 2. Trigger the AI Substitution
+POST https://grist-diet-app-production.up.railway.app/api/meals/1/substitute/
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "ingredient_to_replace": "tempeh"
+}
