@@ -90,6 +90,14 @@ load_dotenv()
 def generate_and_save_meal(user_profile, meal_type="lunch"):
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+    type_map = {
+        'breakfast': 'B', 'b': 'B',
+        'morning snack': 'S1', 's1': 'S1',
+        'lunch': 'L', 'l': 'L',
+        'mid day snack': 'S2', 's2': 'S2',
+        'dinner': 'D', 'd': 'D'
+    }
+
     #  Gather all the data from the Kotlin frontend
     total_target = getattr(user_profile, 'target_calories', 2000)
 
@@ -229,13 +237,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
 
         # C. Map the Recipe to the MealSlot
         # Map the incoming type to match the 5 database choices exactly
-        type_map = {
-            'breakfast': 'B', 'b': 'B',
-            'morning snack': 'S1', 's1': 'S1',
-            'lunch': 'L', 'l': 'L',
-            'mid day snack': 'S2', 's2': 'S2',
-            'dinner': 'D', 'd': 'D'
-        }
+
         meal_code = type_map.get(meal_type.lower(), 'L')
 
         meal_slot, slot_created = MealSlot.objects.get_or_create(
