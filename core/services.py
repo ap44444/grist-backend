@@ -18,10 +18,7 @@ def calculate_weekly_progress(profile, timeframe='this_week'):
     days_tracked = 0
 
     try:
-        weekly_plan = WeeklyPlan.objects.get(
-            user=profile, start_date__lte=today, end_date__gte=today
-        )
-
+        weekly_plan = WeeklyPlan.objects.get(user=profile.user, start_date__lte=today, end_date__gte=today)
         for i in range(7):
             target_date = start_date + timedelta(days=i)
             day_name = target_date.strftime('%A')

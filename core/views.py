@@ -369,31 +369,33 @@ def update_profile(request):
     profile = request.user.profile
     data = request.data
 
-    # Update Basic Info
-    if 'height' in data:
-        profile.height = data['height']
-    if 'weight' in data:
-        profile.weight = data['weight']
-    if 'target_weight' in data:
-        profile.target_weight = data['target_weight']
-    if 'target_calories' in data:
-        profile.target_calories = data['target_calories']
+    # 1. Update Basic Info (Using .get() to avoid errors if a field is missing)
+    profile.height = data.get('height', profile.height)
+    profile.weight = data.get('weight', profile.weight)
+    profile.target_weight = data.get('target_weight', profile.target_weight)
+    profile.target_calories = data.get('target_calories', profile.target_calories)
 
-    # Update Dietary Preferences (Mapping the UI tags)
+    # 2. Update Dietary Preference (The main choice)
     if 'dietary_preference' in data:
         profile.dietary_preference = data['dietary_preference']
+
+    # 3. Handle the Tags (Vegetarian, No Shellfish, etc.)
+    # We store these in your JSONFields (allergies, foods_to_avoid)
     if 'allergies' in data:
-        profile.allergies = data['allergies']
+        profile.allergies = data['allergies']  # Kotlin sends: ["No Shellfish"]
+
+    if 'medical_conditions' in data:
+        profile.medical_conditions = data['medical_conditions']
 
     profile.save()
 
     return Response({
         "status": "success",
-        "message": "Profile updated successfully",
-        "data": {
-            "height": profile.height,
+        "message": "Profile updated!",
+        "current_data": {
             "weight": profile.weight,
-            "target_weight": profile.target_weight,
-            "target_calories": profile.target_calories
+            "target_calories": profile.target_calories,
+            "dietary_preference": profile.dietary_preference,
+            "allergies": profile.allergies
         }
     })
