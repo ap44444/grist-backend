@@ -243,16 +243,6 @@ def get_profile_data(request):
         "bmi_category": category
     })
 
-bmr = calculate_bmr(profile.weight, profile.height, profile.age, profile.gender)
-
-tdee = calculate_tdee(bmr, "moderate") # Replace "moderate" with their actual input
-
-# Calculate their daily limit for a standard weight loss goal
-daily_calorie_limit = calculate_target_calories(tdee, "weight_loss", profile.gender)
-
-# Save it to the database
-profile.target_calories = daily_calorie_limit
-profile.save()
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
