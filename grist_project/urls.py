@@ -37,4 +37,6 @@ urlpatterns = [
     # Daily Tracking Endpoints
     path('api/track/water/', core_views.track_water, name='track_water'),
     path('api/track/meal/<int:meal_slot_id>/', core_views.track_meal, name='track_meal'),
+
+    path('api/profile/update/', core_views.update_profile, name='update_profile'),
 ]

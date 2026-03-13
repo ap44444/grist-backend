@@ -361,3 +361,39 @@ def get_progress_stats(request):
 
     # 2. Return the HTTP Response
     return Response(progress_data)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    profile = request.user.profile
+    data = request.data
+
+    # Update Basic Info
+    if 'height' in data:
+        profile.height = data['height']
+    if 'weight' in data:
+        profile.weight = data['weight']
+    if 'target_weight' in data:
+        profile.target_weight = data['target_weight']
+    if 'target_calories' in data:
+        profile.target_calories = data['target_calories']
+
+    # Update Dietary Preferences (Mapping the UI tags)
+    if 'dietary_preference' in data:
+        profile.dietary_preference = data['dietary_preference']
+    if 'allergies' in data:
+        profile.allergies = data['allergies']
+
+    profile.save()
+
+    return Response({
+        "status": "success",
+        "message": "Profile updated successfully",
+        "data": {
+            "height": profile.height,
+            "weight": profile.weight,
+            "target_weight": profile.target_weight,
+            "target_calories": profile.target_calories
+        }
+    })
