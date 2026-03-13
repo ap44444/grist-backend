@@ -3,7 +3,7 @@ from .ai_service import generate_and_save_meal
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from .serializers import RegisterSerializer
-from core.models import CustomUser
+from core.models import CustomUser, DailyPlan
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import GroceryCart, GroceryCartItem
@@ -17,6 +17,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 import status
+from django.utils import timezone
+from .models import DailyPlan, MealSlot
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -148,3 +150,60 @@ def logout_user(request):
     except Exception as e:
         # If the token is fake or already blacklisted, we just return a 400
         return Response({"error": "Invalid token or token already logged out."}, status=400)
+
+
+#  THE HOME DASHBOARD
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_dashboard_data(request):
+    user_profile = request.user.profile
+    today = timezone.now().date()
+
+    # The Weekly Balance array for the Bar Chart (Mon-Sun)
+    #dummy data for the front end to build the UI
+    weekly_balance = [50, 80, 100, 40, 0, 0, 0]
+
+    try:
+        daily_plan = DailyPlan.objects.get(week_plan__user=user_profile, date=today)
+        all_meals_today = daily_plan.meals.all()
+
+        # Add up calories from meals they actually pressed "I ate this" on
+        consumed_calories = sum(slot.recipe.calories for slot in all_meals_today if slot.is_consumed)
+
+        # Find the next meal they haven't eaten yet
+        next_meal_slot = all_meals_today.filter(is_consumed=False).first()
+        next_meal_data = None
+        if next_meal_slot:
+            next_meal_data = {
+                "id": next_meal_slot.id,
+                "title": next_meal_slot.recipe.title,
+                "image_url": getattr(next_meal_slot.recipe, 'image_url',
+                                     "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"),
+                "is_consumed": next_meal_slot.is_consumed
+            }
+
+        return Response({
+            "target_calories": user_profile.target_calories,
+            "consumed_calories": consumed_calories,
+            "macros": {"carbs_eaten": 120, "carbs_target": 250, "protein_eaten": 85, "protein_target": 160,
+                       "fat_eaten": 42, "fat_target": 70},
+            "next_meal": next_meal_data,
+            "water_consumed_l": daily_plan.water_consumed_ml / 1000.0,
+            "water_target_l": daily_plan.target_water_ml / 1000.0,
+            "streak_days": user_profile.current_streak,
+            "weekly_balance_array": weekly_balance
+        })
+
+    except DailyPlan.DoesNotExist:
+        # If they haven't generated a plan yet, send them a clean zeroed-out dashboard!
+        return Response({
+            "target_calories": user_profile.target_calories,
+            "consumed_calories": 0,
+            "macros": {"carbs_eaten": 0, "carbs_target": 250, "protein_eaten": 0, "protein_target": 160, "fat_eaten": 0,
+                       "fat_target": 70},
+            "next_meal": None,
+            "water_consumed_l": 0.0,
+            "water_target_l": 2.5,
+            "streak_days": user_profile.current_streak,
+            "weekly_balance_array": weekly_balance
+        })

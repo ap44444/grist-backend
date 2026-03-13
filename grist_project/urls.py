@@ -27,4 +27,6 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     # user logout
     path('api/logout/', views.logout_user, name='logout'),
+
+    path('api/dashboard/today/', views.get_dashboard_data, name='dashboard_today'),
 ]
