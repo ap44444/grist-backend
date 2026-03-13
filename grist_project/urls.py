@@ -31,4 +31,6 @@ urlpatterns = [
     path('api/dashboard/today/', views.get_dashboard_data, name='dashboard_today'),
 
     path('api/profile/', views.get_profile_data, name='get_profile_data'),
+
+    path('api/profile/calculate-targets/', core_views.calculate_and_save_calories, name='calculate_targets'),
 ]

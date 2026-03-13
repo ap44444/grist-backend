@@ -20,6 +20,9 @@ from rest_framework import status
 from django.utils import timezone
 from .models import DailyPlan, MealSlot
 from .bmi_calculator import calculate_bmi, bmi_category
+from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calories
+from datetime import date
+from .models import UserProfile
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -238,4 +241,56 @@ def get_profile_data(request):
         "streak_days": profile.current_streak,
         "bmi": bmi,
         "bmi_category": category
+    })
+
+bmr = calculate_bmr(profile.weight, profile.height, profile.age, profile.gender)
+
+tdee = calculate_tdee(bmr, "moderate") # Replace "moderate" with their actual input
+
+# Calculate their daily limit for a standard weight loss goal
+daily_calorie_limit = calculate_target_calories(tdee, "weight_loss", profile.gender)
+
+# Save it to the database
+profile.target_calories = daily_calorie_limit
+profile.save()
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_and_save_calories(request):
+    profile: UserProfile = request.user.profile
+
+    # 1. Grab the user's choices from the mobile app's JSON request
+    # If they don't send anything, we default to whatever is already saved in their profile
+    activity = request.data.get('activity_level', profile.activity_level or 'sedentary')
+    goal = request.data.get('goal_intensity', profile.primary_goal or 'maintain')
+
+    # 2. Validate that we have the physical data needed for the math
+    if not all([profile.weight, profile.height, profile.gender, profile.date_of_birth]):
+        return Response({"error": "Missing weight, height, gender, or DOB. Please update profile first."}, status=400)
+
+    # 3. Calculate their exact age from their Date of Birth
+    today = date.today()
+    dob = profile.date_of_birth
+    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    # 4. Run the medical math!
+    bmr = calculate_bmr(profile.weight, profile.height, age, profile.gender)
+    tdee = calculate_tdee(bmr, activity)
+    daily_limit = calculate_target_calories(tdee, goal, profile.gender)
+
+    # 5. Save the results to the database
+    profile.activity_level = activity
+    profile.primary_goal = goal
+    profile.target_calories = daily_limit
+    profile.save()
+
+    return Response({
+        "status": "success",
+        "message": "Calorie targets locked in!",
+        "metrics": {
+            "age": age,
+            "bmr": round(bmr),
+            "tdee": round(tdee),          # How much they burn existing
+            "target_calories": daily_limit # Their new daily goal
+        }
     })
