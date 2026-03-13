@@ -16,9 +16,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-import status
+from rest_framework import status
 from django.utils import timezone
 from .models import DailyPlan, MealSlot
+from .bmi_calculator import calculate_bmi, bmi_category
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -207,3 +208,34 @@ def get_dashboard_data(request):
             "streak_days": user_profile.current_streak,
             "weekly_balance_array": weekly_balance
         })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_profile_data(request):
+    profile = request.user.profile
+
+    bmi = 0.0
+    category = "Unknown"
+
+    if profile.height and profile.weight:
+        # 1. Convert centimeters to meters for the bmi function
+        height_in_meters = profile.height / 100.0
+
+        # 2. Use the bmi function to calculate the exact BMI
+        raw_bmi = calculate_bmi(profile.weight, height_in_meters)
+
+        # 3. Round it to 1 decimal place so it looks clean on the mobile screen
+        bmi = round(raw_bmi, 1)
+
+        # 4. Use the bmi category function to label it (Underweight, Normal, etc.)
+        category = bmi_category(raw_bmi)
+
+    return Response({
+        "user_id": request.user.id,
+        "full_name": request.user.get_full_name() or request.user.username,
+        "profile_picture_url": None,
+        "streak_days": profile.current_streak,
+        "bmi": bmi,
+        "bmi_category": category
+    })
