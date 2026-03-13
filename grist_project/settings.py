@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'core',
     'import_export',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
 
 ]
 

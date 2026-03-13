@@ -1,17 +1,9 @@
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from .serializers import UserProfileSerializer
 from .ai_service import generate_and_save_meal
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
-from django.contrib.auth.models import User
 from .serializers import RegisterSerializer
 from core.models import CustomUser
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import GroceryCart, GroceryCartItem
@@ -20,6 +12,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .ai_service import substitute_ingredient_in_meal
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+import status
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -125,3 +122,29 @@ def request_substitution(request, meal_slot_id):
         return Response(result, status=200)
     else:
         return Response(result, status=400)
+# Loging out a user
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_user(request):
+    try:
+        # The frontend sends {"refresh_token": "eyJh..."}
+        refresh_token = request.data.get("refresh_token")
+
+        if not refresh_token:
+            return Response(
+                {"error": "Refresh token is required to log out."},
+                status=400
+            )
+
+        # Blacklist the token so it can never be used again
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+
+        return Response(
+            {"status": "success", "message": "Successfully logged out."},
+            status=205  # 205 means "Reset Content" (perfect for logouts)
+        )
+
+    except Exception as e:
+        # If the token is fake or already blacklisted, we just return a 400
+        return Response({"error": "Invalid token or token already logged out."}, status=400)

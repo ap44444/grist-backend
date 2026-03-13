@@ -25,4 +25,6 @@ urlpatterns = [
     path('cart/item/<int:item_id>/delete/', views.delete_cart_item, name='delete_item'), # DELETE
     # The Token Refresh Endpoint
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # user logout
+    path('api/logout/', views.logout_user, name='logout'),
 ]
