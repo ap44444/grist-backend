@@ -71,6 +71,8 @@ class WeeklyPlan(models.Model):
 class DailyPlan(models.Model):
     week_plan = models.ForeignKey(WeeklyPlan, related_name='days', on_delete=models.CASCADE)
     day_name = models.CharField(max_length=20)
+    water_consumed_ml = models.IntegerField(default=0)
+    target_water_ml = models.IntegerField(default=2500)
 
 
 class MealSlot(models.Model):
@@ -78,6 +80,7 @@ class MealSlot(models.Model):
     meal_type = models.CharField(max_length=20, choices=[('B', 'Breakfast'), ('L', 'Lunch'), ('D', 'Dinner')])
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     is_substituted = models.BooleanField(default=False)
+    is_consumed = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('day_plan', 'meal_type')
