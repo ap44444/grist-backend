@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from typing import List
 from django.utils import timezone
-
+import random
 # Importing the Django models
 
 from core.models import Recipe, Ingredient, RecipeIngredient, GroceryCart, GroceryCartItem, WeeklyPlan, DailyPlan, MealSlot
@@ -91,7 +91,29 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     #  Gather all the data from the Kotlin frontend
-    target_calories = getattr(user_profile, 'target_calories', 600)  # Teammate's calculated value
+    total_target = getattr(user_profile, 'target_calories', 2000)
+
+    # Calculate portions based on if it's a snack or main meal
+    if meal_type.lower() in ['s1', 's2', 'morning snack', 'mid day snack']:
+        target_calories = round(total_target * 0.12)
+        snack_vibes = [
+            "a traditional herbal drink (like Kola Kenda, Belimal, or Ranawara) with a tiny sweet",
+            "a refreshing local fruit plate (like Papaya, Pineapple, or Mango) with chili/salt",
+            "a small portion of spiced boiled legumes (like Mung Beans, Kaupi, or Kadala) with fresh coconut",
+            "a small portion of traditional steamed roots (like Manioc or Sweet Potato) with a light sambol",
+            "a very light, healthy Sri Lankan traditional sweet (like Thala Guli or Aggala) paired with plain tea"
+        ]
+        chosen_vibe = random.choice(snack_vibes)
+
+        context_header = f"""
+                *** CURRENT MEAL CONTEXT: This is a LIGHT SNACK ({meal_code}). ***
+                Style: Light, quick, and refreshing. 
+                CRITICAL DIRECTION: For this specific request, please focus on generating {chosen_vibe}.
+                Do NOT generate a massive main meal.
+                """
+    else:
+        target_calories = round(total_target * 0.28)
+        context_header = f"CURRENT MEAL CONTEXT: This is a BALANCED MAIN MEAL ({meal_type}). Style: Strictly follow the Protein + Complex Carb + Veg structure."
     allergies = ", ".join(user_profile.allergies) if user_profile.allergies else "None"
     avoid_foods = ", ".join(user_profile.foods_to_avoid) if user_profile.foods_to_avoid else "None"
     medical = ", ".join(user_profile.medical_conditions) if user_profile.medical_conditions else "None"
@@ -99,6 +121,8 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
     activity = user_profile.activity_level
 
     prompt = f"""
+    
+        {context_header}
         You are an elite Sri Lankan clinical nutritionist...
 
         USER HEALTH PROFILE:
@@ -110,7 +134,10 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         - Target Calories: {target_calories} kcal.
         - Mandatory Exclusions (Allergies): {allergies}.
         - User Dislikes (Avoid): {avoid_foods}.
-        
+        CULINARY DIRECTION:
+        - If this is a SNACK (S1/S2): Strictly follow the "CURRENT MEAL CONTEXT" instructions at the top of this prompt.
+        - If this is a MAIN MEAL (B/L/D): Follow the lean protein + complex carb + green vegetable rule.
+            
         CRITICAL HEALTH & CULINARY INSTRUCTIONS:
         - NO BORING MEALS: Absolutely no generic "boiled chicken and white rice" or "plain dhal". Elevate the dish.
         - HEALTH FIRST: Zero deep-frying. Strictly minimize thick coconut milk and oil.
@@ -201,12 +228,15 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         )
 
         # C. Map the Recipe to the MealSlot
-        # Convert the word "lunch" to "L" to match database choices
-        meal_code = 'L'
-        if meal_type.lower() == 'breakfast':
-            meal_code = 'B'
-        elif meal_type.lower() == 'dinner':
-            meal_code = 'D'
+        # Map the incoming type to match the 5 database choices exactly
+        type_map = {
+            'breakfast': 'B', 'b': 'B',
+            'morning snack': 'S1', 's1': 'S1',
+            'lunch': 'L', 'l': 'L',
+            'mid day snack': 'S2', 's2': 'S2',
+            'dinner': 'D', 'd': 'D'
+        }
+        meal_code = type_map.get(meal_type.lower(), 'L')
 
         meal_slot, slot_created = MealSlot.objects.get_or_create(
             day_plan=daily_plan,
