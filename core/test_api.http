@@ -29,7 +29,7 @@ POST https://grist-diet-app-production.up.railway.app/api/register/
 Content-Type: application/json
 
 {
-  "username": "test_dietiffvvvftian_01",
+  "username": "hehe",
   "email": "doctor_test@example.com",
   "password": "securepassword123",
   "role": "DIETITIAN"
