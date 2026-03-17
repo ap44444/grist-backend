@@ -24,7 +24,8 @@ from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calo
 from datetime import date
 from .models import UserProfile
 from django.utils import timezone
-from .services import calculate_weekly_progress
+from .services import calculate_weekly_progress, get_daily_nutritional_summary
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -164,6 +165,7 @@ def logout_user(request):
 def get_dashboard_data(request):
     user_profile = request.user.profile
     today = timezone.now().date()
+    today_name = today.strftime('%A')
 
     # The Weekly Balance array for the Bar Chart (Mon-Sun)
     #dummy data for the front end to build the UI
@@ -399,3 +401,59 @@ def update_profile(request):
             "allergies": profile.allergies
         }
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_daily_diet_plan(request):
+    profile = request.user.profile
+    today = timezone.now().date()
+    today_name = today.strftime('%A')
+
+    try:
+        daily_plan = DailyPlan.objects.get(
+            week_plan__user=profile.user,
+            week_plan__start_date__lte=today,
+            week_plan__end_date__gte=today,
+            day_name=today_name
+        )
+
+        # Get the blue card data (Macros)
+        summary = get_daily_nutritional_summary(daily_plan)
+
+        # Sort meals chronologically, not alphabetically
+        sort_order = {'B': 1, 'S1': 2, 'L': 3, 'S2': 4, 'D': 5}
+        meals = list(daily_plan.meals.all())
+        meals.sort(key=lambda x: sort_order.get(x.meal_type, 99))
+
+        # Calculate actual completion percentage safely
+        total_meals = len(meals)
+        consumed_meals = sum(1 for slot in meals if slot.is_consumed)
+        completion_percentage = int((consumed_meals / total_meals) * 100) if total_meals > 0 else 0
+
+        # Build the meals list
+        meals_data = []
+        for slot in meals:
+            # Safe fallback in case image_url isn't in the Recipe model yet
+            safe_image = getattr(slot.recipe, 'image_url',
+                                 "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg")
+
+            meals_data.append({
+                "id": slot.id,
+                "type": slot.get_meal_type_display(),
+                "recipe_name": slot.recipe.title,
+                "calories": slot.recipe.calories,
+                "image_url": safe_image,
+                "is_eaten": slot.is_consumed
+            })
+
+        return Response({
+            "date": today.strftime("%A, %b %d"),
+            "calorie_target": profile.target_calories,
+            "nutritional_summary": summary,
+            "meals": meals_data,
+            "completion_percentage": completion_percentage
+        })
+
+    except DailyPlan.DoesNotExist:
+        return Response({"error": "No plan for today"}, status=404)

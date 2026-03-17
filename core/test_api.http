@@ -11,13 +11,8 @@ Content-Type: application/json
     // This script catches the token from your live server and saves it!
     client.global.set("auth_token", response.body.access);
 %}
-
-
-### 2. Trigger the AI Substitution
-POST https://grist-diet-app-production.up.railway.app/api/meals/1/substitute/
+### 2. Request a Morning Snack (S1)
+GET https://grist-diet-app-production.up.railway.app/api/recipe/request/?type=s1
 Authorization: Bearer {{auth_token}}
-Content-Type: application/json
+Accept: application/json
 
-{
-  "ingredient_to_replace": "tempeh"
-}

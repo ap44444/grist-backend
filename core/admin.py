@@ -9,7 +9,7 @@ from .models import (
     RecipeIngredient,UserProfile
 )
 
-# --- 1. SMART RESOURCES (The Translation Layer) ---
+#   SMART RESOURCES (The Translation Layer)
 
 # This handles the complex "Recipe <-> Ingredient" link
 class RecipeIngredientResource(resources.ModelResource):
@@ -33,7 +33,7 @@ class RecipeIngredientResource(resources.ModelResource):
         # This allows importing without a primary key ID column
         import_id_fields = ('recipe', 'ingredient')
 
-# --- 2. ADMIN VIEWS ---
+#   ADMIN VIEWS
 
 @admin.register(Ingredient)
 class IngredientAdmin(ImportExportModelAdmin):
@@ -58,7 +58,7 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'gender', 'country', 'primary_goal', 'activity_level')
     search_fields = ('user__username', 'country')
 
-# 3. STANDARD REGISTRATIONS
+# STANDARD REGISTRATIONS
 admin.site.register(WeeklyPlan)
 admin.site.register(DailyPlan)
 admin.site.register(CustomUser)

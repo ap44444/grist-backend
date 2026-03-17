@@ -14,7 +14,9 @@ urlpatterns = [
 
     # Dashboard and stats
     path('api/dashboard/today/', core_views.get_dashboard_data, name='dashboard_today'),
-    path('api/stats/progress/', core_views.get_progress_stats, name='progress_stats'), # Added this!
+    path('api/stats/progress/', core_views.get_progress_stats, name='progress_stats'),
+    path('api/diet-plan/today/', core_views.get_daily_diet_plan, name='daily_diet_plan'),
+
 
     # Profile and goals
     path('api/profile/', core_views.get_profile_data, name='get_profile_data'),
@@ -34,5 +36,6 @@ urlpatterns = [
     path('api/cart/add/', core_views.add_cart_item, name='add_cart_item'),
     path('api/cart/item/<int:item_id>/update/', core_views.update_cart_item, name='update_item'),
     path('api/cart/item/<int:item_id>/delete/', core_views.delete_cart_item, name='delete_item'),
+
 
 ]
