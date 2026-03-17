@@ -23,3 +23,14 @@ Content-Type: application/json
 {
   "id_token": "this_is_a_completely_fake_token_to_test_the_bouncer"
 }
+
+### Test Standard Dietitian Registration
+POST https://grist-diet-app-production.up.railway.app/api/register/
+Content-Type: application/json
+
+{
+  "username": "test_dietiffvvvftian_01",
+  "email": "doctor_test@example.com",
+  "password": "securepassword123",
+  "role": "DIETITIAN"
+}

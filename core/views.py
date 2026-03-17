@@ -40,6 +40,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import get_user_model
+from core.models import UserProfile, DieticianProfile
 
 
 @api_view(['POST'])
@@ -73,11 +74,59 @@ def request_recipe(request):
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
-class RegisterView(generics.CreateAPIView):
-    queryset = CustomUser.objects.all()
-    permission_classes = (AllowAny,)
-    serializer_class = RegisterSerializer
 
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        email = request.data.get('email')
+
+        # 1. Catch the role from the frontend
+        requested_role = request.data.get('role', 'PATIENT').upper()
+        if requested_role not in ['PATIENT', 'DIETITIAN']:
+            requested_role = 'PATIENT'
+
+        if not username or not password or not email:
+            return Response({"error": "Username, password, and email are required"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return Response({"error": "Username already exists"}, status=400)
+
+        try:
+            # 2. Create the User (using your CustomUser model)
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+
+            # 3. Handle Dietician specific flag
+            if requested_role == 'DIETITIAN':
+                user.is_dietician = True
+                user.save()
+
+            # 4. Signal auto-created the Profile
+            user.profile.role = requested_role
+            user.profile.save()
+
+            # 5. Create professional table
+            if requested_role == 'DIETITIAN':
+                DieticianProfile.objects.create(user=user)
+
+            # 6. Log them in immediately
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                "message": "User registered successfully",
+                "role": user.profile.role,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 # 1. READ (GET)
 @api_view(['GET'])

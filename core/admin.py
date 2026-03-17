@@ -3,6 +3,7 @@ from .models import Recipe, Ingredient, GroceryCart, GroceryCartItem
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
+from core.models import CustomUser, UserProfile, DieticianProfile
 from .models import (
     Ingredient, Recipe, WeeklyPlan, DailyPlan, CustomUser,
     ShoppingList, ShoppingListItem, ChatMessage, PriceUpdate,
@@ -66,6 +67,7 @@ admin.site.register(ShoppingList)
 admin.site.register(ShoppingListItem)
 admin.site.register(ChatMessage)
 admin.site.register(PriceUpdate)
+admin.site.register(DieticianProfile)
 #GROCERY CART
 admin.site.register(GroceryCart)
 admin.site.register(GroceryCartItem)
