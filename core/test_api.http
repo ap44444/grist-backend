@@ -16,3 +16,10 @@ GET https://grist-diet-app-production.up.railway.app/api/recipe/request/?type=s1
 Authorization: Bearer {{auth_token}}
 Accept: application/json
 
+### Test Google Auth Endpoint (The Bouncer Test)
+POST https://grist-diet-app-production.up.railway.app/api/auth/google/
+Content-Type: application/json
+
+{
+  "id_token": "this_is_a_completely_fake_token_to_test_the_bouncer"
+}

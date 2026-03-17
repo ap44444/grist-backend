@@ -137,6 +137,9 @@ class PriceUpdate(models.Model):
 class UserProfile(models.Model):
 
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='profile')
+
+    USER_ROLES = [('PATIENT', 'Patient'), ('DIETITIAN', 'Dietitian')]
+    role = models.CharField(max_length=15, choices=USER_ROLES, default='PATIENT')
     current_streak = models.IntegerField(default=0, help_text="Consecutive days logging in/eating meals")
     # Demographics
     GENDER_CHOICES = [('Male', 'Male'), ('Female', 'Female')]

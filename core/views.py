@@ -34,6 +34,12 @@ from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from core.models import UserProfile
 import os
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from django.contrib.auth import get_user_model
 
 
 @api_view(['POST'])
@@ -468,56 +474,68 @@ def get_daily_diet_plan(request):
         return Response({"error": "No plan for today"}, status=404)
 
 
+User = get_user_model()
+
 class GoogleLoginView(APIView):
-    # Allow anyone to hit this endpoint without a token
     permission_classes = [AllowAny]
 
     def post(self, request):
         token = request.data.get('id_token')
 
+        # Catch the role from the UI (defaults to PATIENT)
+        requested_role = request.data.get('role', 'PATIENT').upper()
+        if requested_role not in ['PATIENT', 'DIETITIAN' ]:
+            requested_role = 'PATIENT'
+
         if not token:
             return Response({"error": "id_token is required"}, status=400)
 
         try:
-            # Verify the token with Google
-            # Note: We will set up the GOOGLE_CLIENT_ID in your .env file later
             client_id = os.environ.get('GOOGLE_CLIENT_ID')
             idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
 
-            # 2. Extract user info from the Google token
             email = idinfo['email']
             first_name = idinfo.get('given_name', '')
             last_name = idinfo.get('family_name', '')
 
-            # 3. Get or Create the Django User
+            # Get or Create CustomUser
             user, created = User.objects.get_or_create(username=email, defaults={
                 'email': email,
                 'first_name': first_name,
                 'last_name': last_name
             })
 
-            # 4. If they are a brand new user, set them up securely
             if created:
-                # Prevent them from logging in with a blank password
                 user.set_unusable_password()
+                # If they chose dietician, update custom boolean
+                if requested_role == 'DIETITIAN':
+                    user.is_dietician = True
                 user.save()
 
-                # Create their blank profile for the diet app
-                UserProfile.objects.get_or_create(user=user)
 
-            # 5. Generate YOUR backend's JWT tokens for the Kotlin app to use
+                user.profile.role = requested_role
+                user.profile.save()
+
+                # Create the professional tables
+                if requested_role == 'DIETITIAN':
+                    DieticianProfile.objects.create(user=user)
+
+            # Generate JWTs
             refresh = RefreshToken.for_user(user)
+
+            # Safely get the role to send to Kotlin
+            user_role = getattr(user.profile, 'role', 'PATIENT')
 
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
                 'user_id': user.id,
                 'email': user.email,
+                'role': user_role,
                 'is_new_user': created
             })
 
         except ValueError:
-            # The token was invalid, expired, or faked
             return Response({"error": "Invalid Google token"}, status=401)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
