@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core import views as core_views
+from core.views import GoogleLoginView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -11,6 +12,7 @@ urlpatterns = [
     path('api/login/', TokenObtainPairView.as_view(), name='login'),
     path('api/logout/', core_views.logout_user, name='logout'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/google/', GoogleLoginView.as_view(), name='google_login'),
 
     # Dashboard and stats
     path('api/dashboard/today/', core_views.get_dashboard_data, name='dashboard_today'),
