@@ -25,35 +25,34 @@ from rest_framework.views import APIView
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+import socket
+from django.conf import settings
 
 
 @extend_schema(
     summary="Request AI Meal Recipe",
-    parameters=[OpenApiParameter("type", OpenApiTypes.STR, description="Meal type: breakfast, lunch, or dinner. Defaults to lunch.")],
+    parameters=[
+        OpenApiParameter("type", OpenApiTypes.STR,
+                         description="Meal type: breakfast, lunch, or dinner. Defaults to lunch.")
+    ],
     responses={200: serializers.DictField()}
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def request_recipe(request):
-    # Get the profile of the user making the request
     user_profile = request.user.profile
-
-    # Identify the meal type ( default to lunch)
     meal_type = request.query_params.get('type', 'lunch')
-    pass
 
-    # calling the ai function
     try:
+        # We give the AI a window to answer.
+        # If it takes too long, the 504 error tells the Kotlin app to show a "Retry" button.
         recipe_data = generate_and_save_meal(user_profile, meal_type=meal_type)
         return Response(recipe_data, status=200)
+
+    except socket.timeout:
+        return Response({"error": "AI is taking a bit long. Please try again in a moment!"}, status=504)
     except Exception as e:
-        return Response({"error": str(e)}, status=500)
-
-class RegisterView(generics.CreateAPIView):
-    queryset = CustomUser.objects.all()
-    permission_classes = (AllowAny,)
-    serializer_class = RegisterSerializer
-
+        return Response({"error": "AI Chef is currently busy. Try again!"}, status=500)
 
 # 1. READ (GET)
 @api_view(['GET'])
