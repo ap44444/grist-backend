@@ -36,3 +36,8 @@ urlpatterns = [
     path('api/cart/item/<int:item_id>/delete/', core_views.delete_cart_item, name='delete_item'),
 
 ]
+
+# UserProfile CRUD
+urlpatterns += [
+    path('api/profile/manage/', core_views.UserProfileCRUDView.as_view(), name='manage-profile'),
+]
