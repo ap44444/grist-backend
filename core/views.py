@@ -170,6 +170,7 @@ def logout_user(request):
 def get_dashboard_data(request):
     user_profile = request.user.profile
     today = timezone.now().date()
+    today_name = today.strftime('%A')
 
     # The Weekly Balance array for the Bar Chart (Mon-Sun)
     #dummy data for the front end to build the UI
@@ -474,3 +475,12 @@ class UserProfileCRUDView(APIView):
             {"message": "User account and profile permanently deleted."},
             status=status.HTTP_204_NO_CONTENT
         )
+
+@api_view(['GET'])
+@permission_classes([AllowAny]) # Anyone can check if the server is up!
+def health_check(request):
+    return Response({
+        "status": "online",
+        "server_time": timezone.now(),
+        "environment": "production" if not settings.DEBUG else "development"
+    })

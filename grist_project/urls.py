@@ -6,6 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path('health/', core_views.health_check),
 
     # Autentication
     path('api/register/', core_views.RegisterView.as_view(), name='register'),
