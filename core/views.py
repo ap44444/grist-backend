@@ -4,20 +4,15 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from .serializers import RegisterSerializer
 from core.models import CustomUser, DailyPlan
-from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import GroceryCart, GroceryCartItem
 from .serializers import GroceryCartSerializer, GroceryCartItemSerializer
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from .ai_service import substitute_ingredient_in_meal
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
-from django.utils import timezone
 from .models import DailyPlan, MealSlot
 from .bmi_calculator import calculate_bmi, bmi_category
 from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calories
@@ -27,9 +22,16 @@ from django.utils import timezone
 from .services import calculate_weekly_progress
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 
-
+@extend_schema(
+    summary="Request AI Meal Recipe",
+    parameters=[OpenApiParameter("type", OpenApiTypes.STR, description="Meal type: breakfast, lunch, or dinner. Defaults to lunch.")],
+    responses={200: serializers.DictField()}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def request_recipe(request):
@@ -104,7 +106,11 @@ def delete_cart_item(request, item_id):
     item.delete()
     return Response({"message": "Item deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-
+@extend_schema(
+    summary="Substitute an Ingredient",
+    request=inline_serializer(name='SubRequest', fields={'ingredient_to_replace': serializers.CharField()}),
+    responses={200: serializers.DictField()}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def request_substitution(request, meal_slot_id):
@@ -120,7 +126,13 @@ def request_substitution(request, meal_slot_id):
         return Response(result, status=200)
     else:
         return Response(result, status=400)
+
 # Loging out a user
+@extend_schema(
+    summary="User Logout",
+    request=inline_serializer(name='LogoutRequest', fields={'refresh_token': serializers.CharField()}),
+    responses={205: inline_serializer(name='LogoutResponse', fields={'message': serializers.CharField()})}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_user(request):
@@ -149,6 +161,10 @@ def logout_user(request):
 
 
 #  THE HOME DASHBOARD
+@extend_schema(
+    summary="Get Main Dashboard Today",
+    responses={200: serializers.DictField(help_text="Returns macros, calories, next_meal, and streak.")}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_dashboard_data(request):
@@ -210,7 +226,10 @@ def get_dashboard_data(request):
             "weekly_balance_array": weekly_balance
         })
 
-
+@extend_schema(
+    summary="Get Profile Stats (BMI)",
+    responses={200: serializers.DictField(help_text="Returns full_name, BMI, and category.")}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_profile_data(request):
@@ -241,7 +260,14 @@ def get_profile_data(request):
         "bmi_category": category
     })
 
-
+@extend_schema(
+    summary="Lock in Calorie Targets",
+    request=inline_serializer(name='CalorieRequest', fields={
+        'activity_level': serializers.CharField(),
+        'goal_intensity': serializers.CharField()
+    }),
+    responses={200: serializers.DictField()}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def calculate_and_save_calories(request):
@@ -285,6 +311,26 @@ def calculate_and_save_calories(request):
 
 
 # Water tracker
+@extend_schema(
+    summary="Track Water Intake",
+    description="Send the amount of water drank in milliliters. Defaults to 250ml.",
+    request=inline_serializer(
+        name='WaterRequest',
+        fields={
+            'amount_ml': serializers.IntegerField(default=250)
+        }
+    ),
+    responses={
+        200: inline_serializer(
+            name='WaterResponse',
+            fields={
+                'status': serializers.CharField(),
+                'message': serializers.CharField(),
+                'total_water_ml': serializers.IntegerField(),
+            }
+        )
+    }
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def track_water(request):
@@ -339,7 +385,11 @@ def track_meal(request, meal_slot_id):
     except MealSlot.DoesNotExist:
         return Response({"error": "Meal slot not found."}, status=404)
 
-
+@extend_schema(
+    summary="Get Weekly Progress Stats",
+    parameters=[OpenApiParameter("timeframe", OpenApiTypes.STR, description="e.g., 'this_week'")],
+    responses={200: serializers.DictField()}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_progress_stats(request):
