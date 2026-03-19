@@ -26,18 +26,7 @@ from .models import UserProfile
 from django.utils import timezone
 from .services import calculate_weekly_progress
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def update_profile(request):
-    #find the profile for the logged-in user
-    profile = request.user.profile
-    serializer = UserProfileSerializer(profile, data=request.data, partial=True)
 
-    if serializer.is_valid():
-        serializer.save()
-        return Response({"message": "Profile updated successfully!"}, status=status.HTTP_200_OK)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -399,3 +388,38 @@ def update_profile(request):
             "allergies": profile.allergies
         }
     })
+
+class UserProfileCRUDView(APIView):
+    """
+    Handles Create (handled by registration), Read, Update, and Delete
+    for the logged-in user's profile.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # READ
+        profile = request.user.profile
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+
+    def put(self, request):
+        # UPDATE
+        profile = request.user.profile
+        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "message": "Profile updated successfully!",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        # DELETE
+        # Deleting the user automatically deletes their profile due to models.CASCADE
+        user = request.user
+        user.delete()
+        return Response(
+            {"message": "User account and profile permanently deleted."},
+            status=status.HTTP_204_NO_CONTENT
+        )
