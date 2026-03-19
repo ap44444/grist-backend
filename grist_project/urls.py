@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core import views as core_views
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -35,4 +36,7 @@ urlpatterns = [
     path('api/cart/item/<int:item_id>/update/', core_views.update_cart_item, name='update_item'),
     path('api/cart/item/<int:item_id>/delete/', core_views.delete_cart_item, name='delete_item'),
 
+    # API Documentation (Swagger)
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]

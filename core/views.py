@@ -25,7 +25,7 @@ from datetime import date
 from .models import UserProfile
 from django.utils import timezone
 from .services import calculate_weekly_progress
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 
 
