@@ -3,13 +3,14 @@ from .models import Recipe, Ingredient, GroceryCart, GroceryCartItem
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
+from core.models import CustomUser, UserProfile, DieticianProfile
 from .models import (
     Ingredient, Recipe, WeeklyPlan, DailyPlan, CustomUser,
     ShoppingList, ShoppingListItem, ChatMessage, PriceUpdate,
     RecipeIngredient,UserProfile
 )
 
-# --- 1. SMART RESOURCES (The Translation Layer) ---
+#   SMART RESOURCES (The Translation Layer)
 
 # This handles the complex "Recipe <-> Ingredient" link
 class RecipeIngredientResource(resources.ModelResource):
@@ -33,7 +34,7 @@ class RecipeIngredientResource(resources.ModelResource):
         # This allows importing without a primary key ID column
         import_id_fields = ('recipe', 'ingredient')
 
-# --- 2. ADMIN VIEWS ---
+#   ADMIN VIEWS
 
 @admin.register(Ingredient)
 class IngredientAdmin(ImportExportModelAdmin):
@@ -58,7 +59,7 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'gender', 'country', 'primary_goal', 'activity_level')
     search_fields = ('user__username', 'country')
 
-# 3. STANDARD REGISTRATIONS
+# STANDARD REGISTRATIONS
 admin.site.register(WeeklyPlan)
 admin.site.register(DailyPlan)
 admin.site.register(CustomUser)
@@ -66,6 +67,7 @@ admin.site.register(ShoppingList)
 admin.site.register(ShoppingListItem)
 admin.site.register(ChatMessage)
 admin.site.register(PriceUpdate)
+admin.site.register(DieticianProfile)
 #GROCERY CART
 admin.site.register(GroceryCart)
 admin.site.register(GroceryCartItem)

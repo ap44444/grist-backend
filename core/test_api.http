@@ -11,13 +11,26 @@ Content-Type: application/json
     // This script catches the token from your live server and saves it!
     client.global.set("auth_token", response.body.access);
 %}
-
-
-### 2. Trigger the AI Substitution
-POST https://grist-diet-app-production.up.railway.app/api/meals/1/substitute/
+### 2. Request a Morning Snack (S1)
+GET https://grist-diet-app-production.up.railway.app/api/recipe/request/?type=s1
 Authorization: Bearer {{auth_token}}
+Accept: application/json
+
+### Test Google Auth Endpoint (The Bouncer Test)
+POST https://grist-diet-app-production.up.railway.app/api/auth/google/
 Content-Type: application/json
 
 {
-  "ingredient_to_replace": "tempeh"
+  "id_token": "this_is_a_completely_fake_token_to_test_the_bouncer"
+}
+
+### Test Standard Dietitian Registration
+POST https://grist-diet-app-production.up.railway.app/api/register/
+Content-Type: application/json
+
+{
+  "username": "hehe",
+  "email": "doctor_test@example.com",
+  "password": "securepassword123",
+  "role": "DIETITIAN"
 }

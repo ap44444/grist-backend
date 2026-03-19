@@ -76,18 +76,33 @@ class DailyPlan(models.Model):
 
 
 class MealSlot(models.Model):
+    MEAL_CHOICES = [
+        ('B', 'Breakfast'),
+        ('S1', 'Morning Snack'),
+        ('L', 'Lunch'),
+        ('S2', 'Mid Day Snack'),
+        ('D', 'Dinner'),
+    ]
+
+    # 2. Link to the day plan
     day_plan = models.ForeignKey(DailyPlan, related_name='meals', on_delete=models.CASCADE)
-    meal_type = models.CharField(max_length=20, choices=[('B', 'Breakfast'), ('L', 'Lunch'), ('D', 'Dinner')])
+
+    # 3. The actual data field
+    meal_type = models.CharField(max_length=5, choices=MEAL_CHOICES)
+
+    # 4. Link to the recipe
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
+
+    # 5. Status trackers
     is_substituted = models.BooleanField(default=False)
     is_consumed = models.BooleanField(default=False)
 
     class Meta:
+        # Prevents a user from having two 'Lunches' on the same day
         unique_together = ('day_plan', 'meal_type')
 
     def __str__(self):
         return f"{self.day_plan.day_name} - {self.get_meal_type_display()}"
-
 
 #  MODULE 4: EXTRAS
 class ConsultationRequest(models.Model):
@@ -122,6 +137,9 @@ class PriceUpdate(models.Model):
 class UserProfile(models.Model):
 
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='profile')
+
+    USER_ROLES = [('PATIENT', 'Patient'), ('DIETITIAN', 'Dietitian')]
+    role = models.CharField(max_length=15, choices=USER_ROLES, default='PATIENT')
     current_streak = models.IntegerField(default=0, help_text="Consecutive days logging in/eating meals")
     # Demographics
     GENDER_CHOICES = [('Male', 'Male'), ('Female', 'Female')]

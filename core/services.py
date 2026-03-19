@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.utils import timezone
-from .models import WeeklyPlan
+from .models import WeeklyPlan, RecipeIngredient
 
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
@@ -46,4 +46,25 @@ def calculate_weekly_progress(profile, timeframe='this_week'):
         "calorie_trends_array": daily_calories,
         "macronutrient_breakdown": {"protein_percent": 30, "fats_percent": 25, "carbs_percent": 45},
         "consistency": {"percentage": consistency_percentage, "daily_grid": consistency_grid}
+    }
+def get_daily_nutritional_summary(daily_plan):
+    """Calculates total Protein, Carbs, and Fats for a specific day."""
+    total_protein = 0
+    total_carbs = 0
+    total_fats = 0
+
+    for slot in daily_plan.meals.all():
+        # Look through all ingredients in each recipe of the day
+        recipe_ingredients = RecipeIngredient.objects.filter(recipe=slot.recipe)
+        for ri in recipe_ingredients:
+            # Formula: (Ingredient Macro per 100g / 100) * Quantity in grams
+            factor = ri.quantity / 100.0
+            total_protein += float(ri.ingredient.protein) * factor
+            total_carbs += float(ri.ingredient.carbs) * factor
+            total_fats += float(ri.ingredient.fats) * factor
+
+    return {
+        "proteins": round(total_protein),
+        "carbs": round(total_carbs),
+        "fats": round(total_fats)
     }
