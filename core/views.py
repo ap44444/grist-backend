@@ -399,3 +399,31 @@ def update_profile(request):
             "allergies": profile.allergies
         }
     })
+
+
+# --- NEW USER PROFILE CRUD ENDPOINTS ---
+from rest_framework.views import APIView
+
+class UserProfileCRUDView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Read own profile"""
+        profile = request.user.profile
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        """Update own profile (allow partial updates)"""
+        profile = request.user.profile
+        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        """Delete own profile"""
+        profile = request.user.profile
+        profile.delete()
+        return Response({"message": "Profile deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
