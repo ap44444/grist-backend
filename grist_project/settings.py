@@ -42,6 +42,9 @@ INSTALLED_APPS = [
     'core',
     'import_export',
     'rest_framework',
+    'rest_framework.authtoken',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
     'rest_framework_simplejwt.token_blacklist',
     'allauth',
     'allauth.account',
@@ -147,6 +150,13 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7), # Refresh lasts a week
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
+}
+
+# Tells dj-rest-auth to use JWT tokens for the Google Login response
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'grist-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'grist-refresh-token',
 }
 
 #profile picture
