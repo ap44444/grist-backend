@@ -56,8 +56,24 @@ class RecipeIngredientAdmin(ImportExportModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'gender', 'country', 'primary_goal', 'activity_level')
+    list_display = ('user', 'gender', 'country', 'primary_goal', 'profile_picture')
     search_fields = ('user__username', 'country')
+
+    # Explicitly defining the detail view layout
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'profile_picture', 'role', 'current_streak')
+        }),
+        ('Physical Information', {
+            'fields': ('gender', 'date_of_birth', 'country', 'weight', 'height', 'target_weight')
+        }),
+        ('Goals & Preferences', {
+            'fields': ('primary_goal', 'activity_level', 'dietary_preference', 'meals_per_day', 'target_calories')
+        }),
+        ('Health Data', {
+            'fields': ('allergies', 'foods_to_avoid', 'medical_conditions', 'medications')
+        }),
+    )
 
 # STANDARD REGISTRATIONS
 admin.site.register(WeeklyPlan)
