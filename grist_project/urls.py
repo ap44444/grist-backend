@@ -44,4 +44,7 @@ urlpatterns = [
     #Dietician ratings
     path('api/dietitians/<int:dietitian_id>/review/', core_views.submit_review, name='submit_review'),
     path('api/dietitians/<int:dietitian_id>/reviews/', core_views.get_dietitian_reviews, name='get_reviews'),
+
+    #profile picture
+    path('api/profile/upload-picture/', core_views.upload_profile_picture, name='upload_picture'),
 ]
