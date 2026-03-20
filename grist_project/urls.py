@@ -40,4 +40,8 @@ urlpatterns = [
     # API Documentation (Swagger)
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+
+    #Dietician ratings
+    path('api/dietitians/<int:dietitian_id>/review/', core_views.submit_review, name='submit_review'),
+    path('api/dietitians/<int:dietitian_id>/reviews/', core_views.get_dietitian_reviews, name='get_reviews'),
 ]

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import UserProfile
 from core.models import CustomUser
 from .models import GroceryCart, GroceryCartItem
+from .models import DietitianReview
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,3 +42,11 @@ class GroceryCartSerializer(serializers.ModelSerializer):
     class Meta:
         model = GroceryCart
         fields = ['id', 'updated_at', 'items']
+
+class ReviewSerializer(serializers.ModelSerializer):
+    # grabs the patient's name so the app can display "Reviewed by "
+    patient_name = serializers.CharField(source='patient.username', read_only=True)
+
+    class Meta:
+        model = DietitianReview
+        fields = ['id', 'patient_name', 'rating', 'comment', 'created_at']

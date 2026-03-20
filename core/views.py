@@ -27,6 +27,10 @@ from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParam
 from drf_spectacular.types import OpenApiTypes
 import socket
 from django.conf import settings
+from django.db.models import Avg
+from .models import DietitianReview
+from .serializers import ReviewSerializer
+from django.shortcuts import get_object_or_404
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -486,4 +490,67 @@ def health_check(request):
         "status": "online",
         "server_time": timezone.now(),
         "environment": "production" if not getattr(settings, 'DEBUG', False) else "development"
+    })
+
+
+# 1. SUBMIT A REVIEW
+@extend_schema(
+    summary="Submit a Dietitian Review",
+    description="Rate a dietitian 1-5 stars after a video call.",
+    request=inline_serializer(
+        name='SubmitReviewRequest',
+        fields={
+            'rating': serializers.IntegerField(help_text="Number between 1 and 5"),
+            'comment': serializers.CharField(required=False, help_text="Optional text review")
+        }
+    ),
+    responses={201: OpenApiTypes.OBJECT}  # Safe schema!
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_review(request, dietitian_id):
+    dietitian = get_object_or_404(CustomUser, id=dietitian_id)
+
+    rating = request.data.get('rating')
+    comment = request.data.get('comment', '')
+
+    if not rating or not (1 <= int(rating) <= 5):
+        return Response({"error": "Please provide a valid rating between 1 and 5."}, status=400)
+
+    # Create the review
+    review = DietitianReview.objects.create(
+        dietitian=dietitian,
+        patient=request.user,
+        rating=int(rating),
+        comment=comment
+    )
+
+    return Response({
+        "status": "success",
+        "message": "Thank you for your review!",
+        "review_id": review.id
+    }, status=201)
+
+
+# 2. GET REVIEWS & AVERAGE RATING
+@extend_schema(
+    summary="Get Dietitian Reviews",
+    description="Returns all reviews for a dietitian and their average rating.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_dietitian_reviews(request, dietitian_id):
+    dietitian = get_object_or_404(CustomUser, id=dietitian_id)
+    reviews = DietitianReview.objects.filter(dietitian=dietitian).order_by('-created_at')
+
+    # Let the database calculate the exact average instantly!
+    avg_rating = reviews.aggregate(Avg('rating'))['rating__avg']
+
+    return Response({
+        "dietitian_name": dietitian.get_full_name() or dietitian.username,
+        "total_reviews": reviews.count(),
+        # Round the average to 1 decimal place (e.g., 4.7)
+        "average_rating": round(avg_rating, 1) if avg_rating else 0.0,
+        "reviews": ReviewSerializer(reviews, many=True).data
     })
