@@ -33,6 +33,9 @@ from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
 import cloudinary.uploader
 from rest_framework.decorators import api_view, permission_classes, parser_classes
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
 
 
 class RegisterView(generics.CreateAPIView):
@@ -588,3 +591,9 @@ def upload_profile_picture(request):
 
     except Exception as e:
         return Response({"error": f"Cloudinary upload failed: {str(e)}"}, status=500)
+
+
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    client_class = OAuth2Client
+    callback_url = ''

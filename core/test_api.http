@@ -34,3 +34,15 @@ Content-Type: application/json
   "password": "securepassword123",
   "role": "DIETITIAN"
 }
+
+### Upload Profile Picture
+POST https://grist-diet-app-production.up.railway.app/api/profile/upload-picture/
+Authorization: Bearer {{auth_token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="image"; filename="profile.jpeg"
+Content-Type: image/jpeg
+
+< /Users/mahimasenarathna/Downloads/profile.jpeg
+--WebAppBoundary--

@@ -43,6 +43,10 @@ INSTALLED_APPS = [
     'import_export',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
 ]
 
 MIDDLEWARE = [
