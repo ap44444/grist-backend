@@ -575,9 +575,9 @@ def upload_profile_picture(request):
         image_url = upload_data['secure_url']
 
         # 4. Save it to your database!
-        user = request.user
-        user.profile_picture = image_url
-        user.save()
+        profile = request.user.profile
+        profile.profile_picture = image_url
+        profile.save()
 
         return Response({
             "status": "success",
