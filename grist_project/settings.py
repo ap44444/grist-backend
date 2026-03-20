@@ -30,6 +30,8 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 # Application definition
 
 INSTALLED_APPS = [
+    'cloudinary_storage',
+    'cloudinary',
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -41,9 +43,6 @@ INSTALLED_APPS = [
     'import_export',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-    'cloudinary_storage',
-    'cloudinary',
-
 ]
 
 MIDDLEWARE = [
