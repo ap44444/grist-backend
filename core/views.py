@@ -28,6 +28,10 @@ from drf_spectacular.types import OpenApiTypes
 import socket
 from django.conf import settings
 
+class RegisterView(generics.CreateAPIView):
+    queryset = CustomUser.objects.all()
+    permission_classes = (AllowAny,)
+    serializer_class = RegisterSerializer
 
 @extend_schema(
     summary="Request AI Meal Recipe",
@@ -35,7 +39,7 @@ from django.conf import settings
         OpenApiParameter("type", OpenApiTypes.STR,
                          description="Meal type: breakfast, lunch, or dinner. Defaults to lunch.")
     ],
-    responses={200: serializers.DictField()}
+    responses={200: OpenApiTypes.OBJECT}
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -108,7 +112,7 @@ def delete_cart_item(request, item_id):
 @extend_schema(
     summary="Substitute an Ingredient",
     request=inline_serializer(name='SubRequest', fields={'ingredient_to_replace': serializers.CharField()}),
-    responses={200: serializers.DictField()}
+    responses={200: OpenApiTypes.OBJECT}
 )
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -162,7 +166,7 @@ def logout_user(request):
 #  THE HOME DASHBOARD
 @extend_schema(
     summary="Get Main Dashboard Today",
-    responses={200: serializers.DictField(help_text="Returns macros, calories, next_meal, and streak.")}
+    responses={200: OpenApiTypes.OBJECT}
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -228,7 +232,7 @@ def get_dashboard_data(request):
 
 @extend_schema(
     summary="Get Profile Stats (BMI)",
-    responses={200: serializers.DictField(help_text="Returns full_name, BMI, and category.")}
+    responses={200: OpenApiTypes.OBJECT}
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -266,7 +270,7 @@ def get_profile_data(request):
         'activity_level': serializers.CharField(),
         'goal_intensity': serializers.CharField()
     }),
-    responses={200: serializers.DictField()}
+    responses={200: OpenApiTypes.OBJECT}
 )
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -388,7 +392,7 @@ def track_meal(request, meal_slot_id):
 @extend_schema(
     summary="Get Weekly Progress Stats",
     parameters=[OpenApiParameter("timeframe", OpenApiTypes.STR, description="e.g., 'this_week'")],
-    responses={200: serializers.DictField()}
+    responses={200: OpenApiTypes.OBJECT}
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -481,5 +485,5 @@ def health_check(request):
     return Response({
         "status": "online",
         "server_time": timezone.now(),
-        "environment": "production" if not settings.DEBUG else "development"
+        "environment": "production" if not getattr(settings, 'DEBUG', False) else "development"
     })
