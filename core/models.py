@@ -9,7 +9,7 @@ from django.dispatch import receiver
 # --- MODULE 1: USERS ---
 class CustomUser(AbstractUser):
     is_dietician = models.BooleanField(default=False)
-    profile_picture = models.URLField(blank=True, null=True)
+
 
 class DieticianProfile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True,
