@@ -31,6 +31,8 @@ from django.db.models import Avg
 from .models import DietitianReview
 from .serializers import ReviewSerializer
 from django.shortcuts import get_object_or_404
+from rest_framework.parsers import MultiPartParser, FormParser
+import cloudinary.uploader
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -554,3 +556,34 @@ def get_dietitian_reviews(request, dietitian_id):
         "average_rating": round(avg_rating, 1) if avg_rating else 0.0,
         "reviews": ReviewSerializer(reviews, many=True).data
     })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])  # This tells Django to expect a FILE, not JSON
+def upload_profile_picture(request):
+    # 1. Check if the Android app actually attached a file named 'image'
+    if 'image' not in request.FILES:
+        return Response({"error": "No image file provided. Make sure the form-data key is 'image'."}, status=400)
+
+    file = request.FILES['image']
+
+    try:
+        # 2. Upload the file to a specific folder in your Cloudinary account
+        upload_data = cloudinary.uploader.upload(file, folder="grist_profiles")
+
+        # 3. Extract the permanent HTTPS URL Cloudinary generated
+        image_url = upload_data['secure_url']
+
+        # 4. Save it to your database!
+        user = request.user
+        user.profile_picture = image_url
+        user.save()
+
+        return Response({
+            "status": "success",
+            "message": "Profile picture updated successfully!",
+            "profile_picture_url": image_url
+        })
+
+    except Exception as e:
+        return Response({"error": f"Cloudinary upload failed: {str(e)}"}, status=500)
