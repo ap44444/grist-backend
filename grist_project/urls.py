@@ -3,7 +3,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core import views as core_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-#from core.views import GoogleLogin
+from core.views import GoogleLogin
 
 urlpatterns = [
     path("admin/", admin.site.urls),
