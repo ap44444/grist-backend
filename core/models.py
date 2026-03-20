@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from pgvector.django import VectorField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -202,3 +202,18 @@ def save_user_profile(sender, instance, **kwargs):
     # This ensures that if the User is saved, the Profile is also updated
     if hasattr(instance, 'profile'):
         instance.profile.save()
+
+
+class DietitianReview(models.Model):
+    # The dietitian being reviewed
+    dietitian = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='received_reviews')
+    # The patient leaving the review
+    patient = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='given_reviews')
+
+    # Restrict the rating to 1, 2, 3, 4, or 5
+    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.patient.username} -> {self.dietitian.username} ({self.rating} Stars)"

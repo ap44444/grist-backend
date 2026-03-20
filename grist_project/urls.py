@@ -2,9 +2,11 @@ from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core import views as core_views
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path('health/', core_views.health_check),
 
     # Autentication
     path('api/register/', core_views.RegisterView.as_view(), name='register'),
@@ -35,4 +37,11 @@ urlpatterns = [
     path('api/cart/item/<int:item_id>/update/', core_views.update_cart_item, name='update_item'),
     path('api/cart/item/<int:item_id>/delete/', core_views.delete_cart_item, name='delete_item'),
 
+    # API Documentation (Swagger)
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+
+    #Dietician ratings
+    path('api/dietitians/<int:dietitian_id>/review/', core_views.submit_review, name='submit_review'),
+    path('api/dietitians/<int:dietitian_id>/reviews/', core_views.get_dietitian_reviews, name='get_reviews'),
 ]

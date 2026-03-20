@@ -4,20 +4,15 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from .serializers import RegisterSerializer
 from core.models import CustomUser, DailyPlan
-from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import GroceryCart, GroceryCartItem
 from .serializers import GroceryCartSerializer, GroceryCartItemSerializer
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from .ai_service import substitute_ingredient_in_meal
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
-from django.utils import timezone
 from .models import DailyPlan, MealSlot
 from .bmi_calculator import calculate_bmi, bmi_category
 from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calories
@@ -25,33 +20,47 @@ from datetime import date
 from .models import UserProfile
 from django.utils import timezone
 from .services import calculate_weekly_progress
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view
 from rest_framework.views import APIView
-
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def request_recipe(request):
-    # Get the profile of the user making the request
-    user_profile = request.user.profile
-
-    # Identify the meal type ( default to lunch)
-    meal_type = request.query_params.get('type', 'lunch')
-    pass
-
-    # calling the ai function
-    try:
-        recipe_data = generate_and_save_meal(user_profile, meal_type=meal_type)
-        return Response(recipe_data, status=200)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+import socket
+from django.conf import settings
+from django.db.models import Avg
+from .models import DietitianReview
+from .serializers import ReviewSerializer
+from django.shortcuts import get_object_or_404
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
+@extend_schema(
+    summary="Request AI Meal Recipe",
+    parameters=[
+        OpenApiParameter("type", OpenApiTypes.STR,
+                         description="Meal type: breakfast, lunch, or dinner. Defaults to lunch.")
+    ],
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def request_recipe(request):
+    user_profile = request.user.profile
+    meal_type = request.query_params.get('type', 'lunch')
+
+    try:
+        # We give the AI a window to answer.
+        # If it takes too long, the 504 error tells the Kotlin app to show a "Retry" button.
+        recipe_data = generate_and_save_meal(user_profile, meal_type=meal_type)
+        return Response(recipe_data, status=200)
+
+    except socket.timeout:
+        return Response({"error": "AI is taking a bit long. Please try again in a moment!"}, status=504)
+    except Exception as e:
+        return Response({"error": "AI Chef is currently busy. Try again!"}, status=500)
 
 # 1. READ (GET)
 @api_view(['GET'])
@@ -104,7 +113,11 @@ def delete_cart_item(request, item_id):
     item.delete()
     return Response({"message": "Item deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-
+@extend_schema(
+    summary="Substitute an Ingredient",
+    request=inline_serializer(name='SubRequest', fields={'ingredient_to_replace': serializers.CharField()}),
+    responses={200: OpenApiTypes.OBJECT}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def request_substitution(request, meal_slot_id):
@@ -120,7 +133,13 @@ def request_substitution(request, meal_slot_id):
         return Response(result, status=200)
     else:
         return Response(result, status=400)
+
 # Loging out a user
+@extend_schema(
+    summary="User Logout",
+    request=inline_serializer(name='LogoutRequest', fields={'refresh_token': serializers.CharField()}),
+    responses={205: inline_serializer(name='LogoutResponse', fields={'message': serializers.CharField()})}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_user(request):
@@ -149,11 +168,16 @@ def logout_user(request):
 
 
 #  THE HOME DASHBOARD
+@extend_schema(
+    summary="Get Main Dashboard Today",
+    responses={200: OpenApiTypes.OBJECT}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_dashboard_data(request):
     user_profile = request.user.profile
     today = timezone.now().date()
+    today_name = today.strftime('%A')
 
     # The Weekly Balance array for the Bar Chart (Mon-Sun)
     #dummy data for the front end to build the UI
@@ -210,7 +234,10 @@ def get_dashboard_data(request):
             "weekly_balance_array": weekly_balance
         })
 
-
+@extend_schema(
+    summary="Get Profile Stats (BMI)",
+    responses={200: OpenApiTypes.OBJECT}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_profile_data(request):
@@ -241,7 +268,14 @@ def get_profile_data(request):
         "bmi_category": category
     })
 
-
+@extend_schema(
+    summary="Lock in Calorie Targets",
+    request=inline_serializer(name='CalorieRequest', fields={
+        'activity_level': serializers.CharField(),
+        'goal_intensity': serializers.CharField()
+    }),
+    responses={200: OpenApiTypes.OBJECT}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def calculate_and_save_calories(request):
@@ -285,6 +319,26 @@ def calculate_and_save_calories(request):
 
 
 # Water tracker
+@extend_schema(
+    summary="Track Water Intake",
+    description="Send the amount of water drank in milliliters. Defaults to 250ml.",
+    request=inline_serializer(
+        name='WaterRequest',
+        fields={
+            'amount_ml': serializers.IntegerField(default=250)
+        }
+    ),
+    responses={
+        200: inline_serializer(
+            name='WaterResponse',
+            fields={
+                'status': serializers.CharField(),
+                'message': serializers.CharField(),
+                'total_water_ml': serializers.IntegerField(),
+            }
+        )
+    }
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def track_water(request):
@@ -339,7 +393,11 @@ def track_meal(request, meal_slot_id):
     except MealSlot.DoesNotExist:
         return Response({"error": "Meal slot not found."}, status=404)
 
-
+@extend_schema(
+    summary="Get Weekly Progress Stats",
+    parameters=[OpenApiParameter("timeframe", OpenApiTypes.STR, description="e.g., 'this_week'")],
+    responses={200: OpenApiTypes.OBJECT}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_progress_stats(request):
@@ -424,3 +482,75 @@ class UserProfileCRUDView(APIView):
             {"message": "User account and profile permanently deleted."},
             status=status.HTTP_204_NO_CONTENT
         )
+
+@api_view(['GET'])
+@permission_classes([AllowAny]) # Anyone can check if the server is up!
+def health_check(request):
+    return Response({
+        "status": "online",
+        "server_time": timezone.now(),
+        "environment": "production" if not getattr(settings, 'DEBUG', False) else "development"
+    })
+
+
+# 1. SUBMIT A REVIEW
+@extend_schema(
+    summary="Submit a Dietitian Review",
+    description="Rate a dietitian 1-5 stars after a video call.",
+    request=inline_serializer(
+        name='SubmitReviewRequest',
+        fields={
+            'rating': serializers.IntegerField(help_text="Number between 1 and 5"),
+            'comment': serializers.CharField(required=False, help_text="Optional text review")
+        }
+    ),
+    responses={201: OpenApiTypes.OBJECT}  # Safe schema!
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_review(request, dietitian_id):
+    dietitian = get_object_or_404(CustomUser, id=dietitian_id)
+
+    rating = request.data.get('rating')
+    comment = request.data.get('comment', '')
+
+    if not rating or not (1 <= int(rating) <= 5):
+        return Response({"error": "Please provide a valid rating between 1 and 5."}, status=400)
+
+    # Create the review
+    review = DietitianReview.objects.create(
+        dietitian=dietitian,
+        patient=request.user,
+        rating=int(rating),
+        comment=comment
+    )
+
+    return Response({
+        "status": "success",
+        "message": "Thank you for your review!",
+        "review_id": review.id
+    }, status=201)
+
+
+# 2. GET REVIEWS & AVERAGE RATING
+@extend_schema(
+    summary="Get Dietitian Reviews",
+    description="Returns all reviews for a dietitian and their average rating.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_dietitian_reviews(request, dietitian_id):
+    dietitian = get_object_or_404(CustomUser, id=dietitian_id)
+    reviews = DietitianReview.objects.filter(dietitian=dietitian).order_by('-created_at')
+
+    # Let the database calculate the exact average instantly!
+    avg_rating = reviews.aggregate(Avg('rating'))['rating__avg']
+
+    return Response({
+        "dietitian_name": dietitian.get_full_name() or dietitian.username,
+        "total_reviews": reviews.count(),
+        # Round the average to 1 decimal place (e.g., 4.7)
+        "average_rating": round(avg_rating, 1) if avg_rating else 0.0,
+        "reviews": ReviewSerializer(reviews, many=True).data
+    })
