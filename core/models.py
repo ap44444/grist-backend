@@ -1,3 +1,4 @@
+from cloudinary.models import CloudinaryField
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -137,6 +138,7 @@ class PriceUpdate(models.Model):
 class UserProfile(models.Model):
 
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='profile')
+    profile_picture = CloudinaryField('image', null=True, blank=True, folder='grist_profiles')
 
     USER_ROLES = [('PATIENT', 'Patient'), ('DIETITIAN', 'Dietitian')]
     role = models.CharField(max_length=15, choices=USER_ROLES, default='PATIENT')

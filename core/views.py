@@ -20,7 +20,6 @@ from datetime import date
 from .models import UserProfile
 from django.utils import timezone
 from .services import calculate_weekly_progress
-from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
@@ -33,6 +32,8 @@ from .serializers import ReviewSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
 import cloudinary.uploader
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
