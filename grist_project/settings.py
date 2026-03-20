@@ -46,10 +46,12 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',
     'rest_framework_simplejwt.token_blacklist',
+    'django.contrib.sites',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+
 ]
 
 MIDDLEWARE = [
@@ -171,3 +173,4 @@ cloudinary.config(
   api_key = os.getenv('CLOUDINARY_API_KEY'),
   api_secret = os.getenv('CLOUDINARY_API_SECRET')
 )
+SITE_ID = 1
