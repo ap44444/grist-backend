@@ -60,7 +60,26 @@ from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
 from .services import get_dietitian_public_profile
 
-
+@extend_schema(
+    summary="User Registration & Onboarding",
+    description="Creates a new user and immediately saves their onboarding data (height, weight, etc.). Returns JWT tokens.",
+    request=inline_serializer(
+        name='RegisterRequest',
+        fields={
+            'username': serializers.CharField(),
+            'password': serializers.CharField(),
+            'email': serializers.EmailField(),
+            'first_name': serializers.CharField(),
+            'last_name': serializers.CharField(),
+            'role': serializers.CharField(default='PATIENT'),
+            'date_of_birth': serializers.DateField(help_text="Format: YYYY-MM-DD"),
+            'gender': serializers.CharField(),
+            'height': serializers.FloatField(),
+            'weight': serializers.FloatField(),
+        }
+    ),
+    responses={201: OpenApiTypes.OBJECT}
+)
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
