@@ -80,49 +80,30 @@ from .services import get_dietitian_public_profile
     ),
     responses={201: OpenApiTypes.OBJECT}
 )
-class RegisterView(generics.CreateAPIView):
-    queryset = CustomUser.objects.all()
-    permission_classes = (AllowAny,)
-    serializer_class = RegisterSerializer
+def create(self, request, *args, **kwargs):
+    print(f"--- REGISTRATION ATTEMPT ---")
+    print(f"Raw Data: {request.data}")
 
-    def create(self, request, *args, **kwargs):
-        # 1. Create the User
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    serializer = self.get_serializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
-        # We use a 'transaction' to ensure if the profile save fails, the user isn't created
-        from django.db import transaction
-        with transaction.atomic():
-            user = serializer.save()
-            profile = user.profile
-            data = request.data
+    with transaction.atomic():
+        user = serializer.save()
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        data = request.data
 
-            # 2. MANUALLY FORCE the data onto THIS specific user's profile
-            # We don't use request.user here because that might be the 'old' person!
-            profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
-            profile.gender = data.get('gender', profile.gender)
-            profile.height = data.get('height', profile.height)
-            profile.weight = data.get('weight', profile.weight)
-            profile.role = data.get('role', 'PATIENT')
+        # Log exactly what we are trying to save
+        print(f"Saving to Profile ID {profile.id}: Height={data.get('height')}, Weight={data.get('weight')}")
 
-            # Double check: does your model have 'country' or 'location'?
-            # If it's location, use profile.location = data.get('country')
-            if hasattr(profile, 'country'):
-                profile.country = data.get('country', profile.country)
+        profile.height = data.get('height', profile.height)
+        profile.weight = data.get('weight', profile.weight)
+        profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+        profile.gender = data.get('gender', profile.gender)
+        profile.save()
+        print("Profile Save Called Successfully")
 
-            profile.save()
-
-        # 3. Generate the NEW tokens for THIS new user
-        refresh = RefreshToken.for_user(user)
-
-        return Response({
-            "message": "Account created and profile initialized!",
-            "role": profile.role,
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "is_new_user": True
-        }, status=status.HTTP_201_CREATED)
-
+    refresh = RefreshToken.for_user(user)
+    return Response({"message": "Success"}, status=201)
 
 @extend_schema(
     summary="Request AI Meal Recipe",
