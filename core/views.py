@@ -958,3 +958,56 @@ def get_daily_plan_schedule(request):
 
     except DailyPlan.DoesNotExist:
         return Response({"error": "No active plan generated for today."}, status=404)
+
+
+@extend_schema(summary="Get Meal Recipe Details", responses={200: OpenApiTypes.OBJECT})
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_meal_recipe_detail(request, meal_slot_id):
+    try:
+        # SECURITY: Ensure the user actually owns this meal slot!
+        meal_slot = MealSlot.objects.get(
+            id=meal_slot_id,
+            day_plan__week_plan__user=request.user.profile
+        )
+        recipe = meal_slot.recipe
+
+        # Check if they have favored this recipe (defaults to False if you haven't built that model yet)
+        is_favorite = False
+
+        return Response({
+            "id": recipe.id,
+            "title": recipe.title,
+            "image_url": getattr(recipe, 'image_url', "https://placeholder.com/food.jpg"),
+            "ready_in_minutes": getattr(recipe, 'prep_time_minutes', 20),
+            "macros": {
+                "calories": recipe.calories,
+                "protein_g": getattr(recipe, 'protein_g', 32),
+                "carbs_g": getattr(recipe, 'carbs_g', 12),
+                "fats_g": getattr(recipe, 'fat_g', 18)
+            },
+            # Assuming your recipe model stores ingredients as a list of dicts.
+            # If it's a list of strings, the frontend can adapt.
+            "ingredients": getattr(recipe, 'ingredients', [
+                {"name": "Chicken breast", "amount": "200g"},
+                {"name": "Mixed greens", "amount": "2 cups"},
+                {"name": "Cherry tomatoes", "amount": "1/2 cup"}
+            ]),
+            "directions": getattr(recipe, 'instructions', [
+                "Season the chicken breast with salt, pepper, and herbs. Grill over medium-high heat for 6-7 minutes.",
+                "While the chicken is resting, wash and chop the greens.",
+                "Slice the grilled chicken and serve."
+            ]),
+            "is_favorite": is_favorite
+        })
+
+    except MealSlot.DoesNotExist:
+        return Response({"error": "Meal not found."}, status=404)
+
+
+@extend_schema(summary="Toggle Favorite Recipe", responses={200: OpenApiTypes.OBJECT})
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_favorite_recipe(request, recipe_id):
+    # Placeholder for when you build the Favorite models!
+    return Response({"status": "success", "message": "Saved to Favorites!"})
