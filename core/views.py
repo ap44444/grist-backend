@@ -906,3 +906,55 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+@extend_schema(summary="Get Full Daily Diet Plan", responses={200: OpenApiTypes.OBJECT})
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_daily_plan_schedule(request):
+    profile = request.user.profile
+    today = timezone.now().date()
+    today_name = today.strftime('%A')
+
+    try:
+        # Fetch today's plan
+        daily_plan = DailyPlan.objects.get(
+            week_plan__user=profile,
+            week_plan__start_date__lte=today,
+            week_plan__end_date__gte=today,
+            day_name=today_name
+        )
+
+        all_meals = daily_plan.meals.all()
+
+        # Calculate completion percentage
+        total_meals = all_meals.count()
+        eaten_meals = all_meals.filter(is_consumed=True).count()
+        completion_pct = int((eaten_meals / total_meals) * 100) if total_meals > 0 else 0
+
+        # Build the meal list array
+        meals_data = []
+        for slot in all_meals:
+            meals_data.append({
+                "id": slot.id,
+                "type_label": slot.get_meal_type_display(),  # e.g., "Morning Meal"
+                "title": slot.recipe.title,
+                "calories": slot.recipe.calories,
+                "image_url": getattr(slot.recipe, 'image_url', "https://placeholder.com/food.jpg"),
+                "is_consumed": slot.is_consumed
+            })
+
+        return Response({
+            "date_display": f"{today_name}, {today.strftime('%b %d')}",  # e.g., "Tuesday, Oct 24"
+            "target_calories": profile.target_calories,
+            "completion_percentage": completion_pct,
+            "meals": meals_data,
+            "summary": {
+                "proteins_g": 124,  # Replace with actual math from your recipe models later
+                "carbs_g": 185,
+                "fats_g": 62
+            }
+        })
+
+    except DailyPlan.DoesNotExist:
+        return Response({"error": "No active plan generated for today."}, status=404)

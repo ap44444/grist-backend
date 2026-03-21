@@ -51,6 +51,7 @@ urlpatterns = [
                   path('api/recipe/request/', core_views.request_recipe, name='request_recipe'),
                   path('api/meals/<int:meal_slot_id>/substitute/', core_views.request_substitution,
                        name='substitute_ingredient'),
+                path('api/plan/today/', core_views.get_daily_plan_schedule, name='daily_plan_schedule'),
 
                   # Grocery cart
                   path('api/cart/', core_views.get_grocery_cart, name='get_cart'),
