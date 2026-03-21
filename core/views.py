@@ -54,6 +54,9 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from .services import get_dietitian_notifications
 from rest_framework import status
+from rest_framework import viewsets, permissions
+from .models import DietitianReview
+from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
 
 class RegisterView(generics.CreateAPIView):
@@ -834,3 +837,21 @@ def submit_review_view(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_review_view(request):
+    data = request.data
+    try:
+        review = create_dietitian_review(
+            patient_user=request.user,
+            dietitian_id=data.get('dietitian_id'),
+            dietitian_rating=data.get('dietitian_rating'),
+            call_quality_rating=data.get('call_quality_rating'),
+            tags=data.get('tags', []),
+            comment=data.get('comment', '')
+        )
+        return Response({"message": "Review submitted!"}, status=201)
+    except Exception as e:
+        return Response({"error": str(e)}, status=400)

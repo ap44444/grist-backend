@@ -4,6 +4,7 @@ from core.models import CustomUser
 from .models import GroceryCart, GroceryCartItem
 from .models import DietitianReview
 from .models import Appointment
+from rest_framework import serializers
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,3 +65,20 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'meeting_link', 'created_at'
         ]
         read_only_fields = ['patient', 'status', 'meeting_link']
+
+def create_dietitian_review(patient_user, dietitian_id, dietitian_rating, call_quality_rating, tags=None, comment=""):
+    dietitian = CustomUser.objects.filter(id=dietitian_id).first()
+    if not dietitian:
+        raise ValidationError("Dietitian not found.")
+
+    review, created = DietitianReview.objects.update_or_create(
+        patient=patient_user,
+        dietitian=dietitian,
+        defaults={
+            'dietitian_rating': int(dietitian_rating),
+            'call_quality_rating': int(call_quality_rating),
+            'tags': tags or [],
+            'comment': comment
+        }
+    )
+    return review

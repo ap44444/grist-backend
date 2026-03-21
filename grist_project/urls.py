@@ -3,7 +3,6 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core import views as core_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from core.views import GoogleLogin
 from rest_framework.routers import DefaultRouter
 from core.views import AppointmentViewSet
 

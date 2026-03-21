@@ -6,6 +6,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from pgvector.django import VectorField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.db import models
+from django.conf import settings
 
 # --- MODULE 1: USERS ---
 class CustomUser(AbstractUser):
@@ -233,23 +235,24 @@ def save_user_profile(sender, instance, **kwargs):
 
 
 class DietitianReview(models.Model):
-    # The dietitian being reviewed
-    dietitian = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='received_reviews')
-    # The patient leaving the review
     patient = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='given_reviews')
+    dietitian = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='received_reviews')
 
-    # Restrict the rating to 1, 2, 3, 4, or 5
-    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    # Updated to match UI
+    dietitian_rating = models.IntegerField(default=5)  # The main 5-star rating
+    call_quality_rating = models.IntegerField(default=5)  # The call quality rating
+
+    # Tags like ["Knowledgeable", "Friendly"]
+    tags = models.JSONField(default=list, blank=True)
+
     comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # A patient should only be able to leave one active review per dietitian
         unique_together = ('patient', 'dietitian')
 
     def __str__(self):
-        return f"{self.patient.username} -> {self.dietitian.username} ({self.rating} Stars)"
-
+        return f"{self.patient.username} -> {self.dietitian.username} ({self.dietitian_rating}★ | {self.call_quality_rating}★)"
 class SystemNotification(models.Model):
     ALERT_TYPES = [
         ('APPOINTMENT', 'Appointment Alert'),
