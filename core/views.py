@@ -694,3 +694,53 @@ def get_dietitian_dashboard(request):
         "unread_messages_count": unread_messages_count,
         "next_patient": next_patient_data
     })
+
+
+@extend_schema(
+    summary="Get Dietitian Appointments List",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def get_dietitian_appointments(request):
+    today = timezone.now().date()
+    dietitian_user = request.user
+
+    try:
+        from .models import Appointment
+
+        # 1. Fetch Today's Appointments
+        todays_apps = Appointment.objects.filter(
+            dietitian=dietitian_user,
+            date=today,
+            status='CONFIRMED'
+        ).order_by('time')
+
+        # 2. Fetch Future Appointments
+        future_apps = Appointment.objects.filter(
+            dietitian=dietitian_user,
+            date__gt=today,
+            status='CONFIRMED'
+        ).order_by('date', 'time')
+
+        # Helper function to format the data
+        def format_app(app):
+            return {
+                "id": app.id,
+                "patient_name": app.patient.get_full_name() or app.patient.username,
+                "patient_image": getattr(app.patient.profile, 'profile_picture', None),
+                "time": app.time.strftime("%I:%M %p"),
+                "date_display": app.date.strftime("%b %d")  # e.g., "Oct 15"
+            }
+
+        return Response({
+            "today": [format_app(app) for app in todays_apps],
+            "future": [format_app(app) for app in future_apps]
+        })
+
+    except ImportError:
+        # Failsafe until Team Member 2 merges their code
+        return Response({
+            "today": [],
+            "future": []
+        })
