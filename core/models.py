@@ -245,3 +245,20 @@ class DietitianReview(models.Model):
 
     def __str__(self):
         return f"{self.patient.username} -> {self.dietitian.username} ({self.rating} Stars)"
+
+class SystemNotification(models.Model):
+    ALERT_TYPES = [
+        ('APPOINTMENT', 'Appointment Alert'),
+        ('QUESTIONNAIRE', 'Questionnaire Alert'),
+        ('GENERAL', 'General System Alert')
+    ]
+
+    dietitian = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='system_notifications')
+    patient = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='triggered_notifications')
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, default='GENERAL')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.alert_type} for {self.dietitian.username}"

@@ -52,6 +52,7 @@ from .services import get_dietitian_profile_stats
 from .services import get_active_clients_list
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+from .services import get_dietitian_notifications
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -796,3 +797,14 @@ def get_active_clients_view(request):
     clients_data = get_active_clients_list(request.user, search_query)
 
     return Response(clients_data)
+
+@extend_schema(
+    summary="Get Dietitian System Notifications",
+    description="Returns the one-way system alerts (appointments, questionnaires) for the dietitian.",
+    responses={200: OpenApiTypes.ARRAY}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def get_system_notifications_view(request):
+    notifications_data = get_dietitian_notifications(request.user)
+    return Response(notifications_data)

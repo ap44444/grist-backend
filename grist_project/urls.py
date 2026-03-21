@@ -14,6 +14,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('health/', core_views.health_check),
 
+    #notification
+    path('api/dietitian/notifications/', core_views.get_system_notifications_view, name='system_notifications'),
+
     # Autentication
     path('api/register/', core_views.RegisterView.as_view(), name='register'),
     path('api/login/', TokenObtainPairView.as_view(), name='login'),

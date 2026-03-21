@@ -5,6 +5,8 @@ from django.db.models import Avg
 from core.models import DietitianReview, CustomUser
 from django.db.models import Q
 from core.models import CustomUser
+from django.utils import timezone
+from .models import SystemNotification
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -157,3 +159,30 @@ def get_active_clients_list(dietitian_user, search_query=None):
     except ImportError:
         # Failsafe if the Appointment model isn't merged yet
         return []
+
+
+def get_dietitian_notifications(dietitian_user):
+    """
+    Fetches and formats system notifications for the one-way messaging UI.
+    """
+    notifications = SystemNotification.objects.filter(dietitian=dietitian_user).order_by('-created_at')
+
+    today = timezone.now().date()
+    formatted_data = []
+
+    for notif in notifications:
+        notif_date = notif.created_at.date()
+        date_label = "TODAY" if notif_date == today else notif_date.strftime("%b %d, %Y")
+
+        formatted_data.append({
+            "id": notif.id,
+            "alert_type": notif.alert_type,
+            "message": notif.message,
+            "time": notif.created_at.strftime("%I:%M %p"),  # e.g., "09:12 AM"
+            "date_label": date_label,
+            "is_read": notif.is_read,
+            "patient_name": notif.patient.get_full_name() if notif.patient else None,
+            "patient_id": notif.patient.id if notif.patient else None
+        })
+
+    return formatted_data
