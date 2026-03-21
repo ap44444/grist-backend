@@ -62,6 +62,11 @@ from .services import get_dietitian_public_profile
 
 from django.db import transaction  # Make sure this import is at the top!
 
+from rest_framework import viewsets
+from .models import PatientNote
+from .serializers import PatientNoteSerializer
+from .permissions import IsDietitian
+
 
 @extend_schema(
     summary="User Registration & Onboarding",
@@ -900,3 +905,28 @@ def patient_view_dietitian_profile(request, dietitian_id):
 
     # 3. Send it to the Android app
     return Response(profile_data)
+
+#Mihindi - dietician
+class PatientNoteViewSet(viewsets.ModelViewSet):
+    """
+    Full CRUD for Dietitian Patient Notes.
+    - Only authenticated Dietitians can access this.
+    - A dietitian can only see/edit their OWN notes (not other dietitians').
+    """
+    serializer_class = PatientNoteSerializer
+    permission_classes = [IsAuthenticated, IsDietitian]
+
+    def get_queryset(self):
+        # SECURITY: Filter so a dietitian ONLY sees notes they personally wrote
+        queryset = PatientNote.objects.filter(dietitian=self.request.user)
+
+        # OPTIONAL FILTER: If ?patient_id=5 is passed, filter to that patient only
+        patient_id = self.request.query_params.get('patient_id')
+        if patient_id:
+            queryset = queryset.filter(patient__id=patient_id)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        # Auto-inject the logged-in dietitian as the author — never trust the request body
+        serializer.save(dietitian=self.request.user)
