@@ -36,7 +36,14 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
+from django.utils import timezone
+from .permissions import IsDietitian
+from drf_spectacular.utils import extend_schema
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
+from .models import ConsultationRequest, ChatMessage
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -597,3 +604,74 @@ class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     client_class = OAuth2Client
     callback_url = ''
+
+@extend_schema(
+    summary="Get Dietitian Dashboard Data",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian]) # SECURITY: Only Dietitians allowed!
+def get_dietitian_dashboard(request):
+    # 1. Get current time context
+    now = timezone.now()
+    today = now.date()
+    current_time = now.time()
+
+    dietitian_user = request.user
+    dietitian_profile = request.user.dietician_profile
+
+    # 2. "Pending Plans": Count pending ConsultationRequests
+    pending_plans_count = ConsultationRequest.objects.filter(
+        dietitian=dietitian_profile,
+        status='pending'
+    ).count()
+
+    # 3. "Messages" Badge: Count messages sent by patients
+    # (Excludes messages sent BY the dietitian so they only see inbound messages)
+    unread_messages_count = ChatMessage.objects.filter(
+        request__dietitian=dietitian_profile
+    ).exclude(sender=dietitian_user).count()
+
+    # 4. "Today's Clients" & "Next Patient"
+    # We use a try/except block here. This ensures YOUR code works right now,
+    # and automatically links up the moment Team Member 2 pushes their Appointment model!
+    try:
+        from .models import Appointment
+
+        # Count how many appointments are scheduled for today
+        todays_clients_count = Appointment.objects.filter(
+            dietitian=dietitian_user,
+            date=today,
+            status='CONFIRMED'
+        ).count()
+
+        # Find the single closest appointment today that hasn't happened yet
+        next_appointment = Appointment.objects.filter(
+            dietitian=dietitian_user,
+            date=today,
+            time__gte=current_time,
+            status='CONFIRMED'
+        ).order_by('time').first()
+
+        if next_appointment:
+            next_patient_data = {
+                "patient_name": next_appointment.patient.get_full_name() or next_appointment.patient.username,
+                "time": next_appointment.time.strftime("%I:%M %p"),
+                "appointment_type": getattr(next_appointment, 'appointment_type', 'Consultation'),
+                "meeting_link": getattr(next_appointment, 'meeting_link', None)
+            }
+        else:
+            next_patient_data = None
+
+    except ImportError:
+        # Fallback just in case Team Member 2 hasn't merged their code yet
+        todays_clients_count = 0
+        next_patient_data = None
+
+    # 5. Package it all into a clean JSON response for the Android app
+    return Response({
+        "todays_clients_count": todays_clients_count,
+        "pending_plans_count": pending_plans_count,
+        "unread_messages_count": unread_messages_count,
+        "next_patient": next_patient_data
+    })

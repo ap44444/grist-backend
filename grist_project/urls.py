@@ -18,7 +18,8 @@ urlpatterns = [
 
     # Dashboard and stats
     path('api/dashboard/today/', core_views.get_dashboard_data, name='dashboard_today'),
-    path('api/stats/progress/', core_views.get_progress_stats, name='progress_stats'), # Added this!
+    path('api/stats/progress/', core_views.get_progress_stats, name='progress_stats'),
+    path('api/dietitian/dashboard/today/', core_views.get_dietitian_dashboard, name='dietitian_dashboard'),
 
     # Profile and goals
     path('api/profile/', core_views.get_profile_data, name='get_profile_data'),

@@ -127,6 +127,7 @@ class ChatMessage(models.Model):
     sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     message = models.TextField()
     sent_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
 
 class PriceUpdate(models.Model):
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
