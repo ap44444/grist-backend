@@ -10,6 +10,8 @@ from .models import (
     RecipeIngredient,UserProfile
 )
 
+from .models import PatientNote
+
 #   SMART RESOURCES (The Translation Layer)
 
 # This handles the complex "Recipe <-> Ingredient" link
@@ -74,6 +76,13 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('allergies', 'foods_to_avoid', 'medical_conditions', 'medications')
         }),
     )
+
+@admin.register(PatientNote)
+class PatientNoteAdmin(admin.ModelAdmin):
+    list_display = ('dietitian', 'patient', 'created_at', 'updated_at')
+    search_fields = ('dietitian__username', 'patient__username', 'note_text')
+    list_filter = ('dietitian',)
+
 
 # STANDARD REGISTRATIONS
 admin.site.register(WeeklyPlan)
