@@ -243,6 +243,10 @@ class DietitianReview(models.Model):
     comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        # A patient should only be able to leave one active review per dietitian
+        unique_together = ('patient', 'dietitian')
+
     def __str__(self):
         return f"{self.patient.username} -> {self.dietitian.username} ({self.rating} Stars)"
 

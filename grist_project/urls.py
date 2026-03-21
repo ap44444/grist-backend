@@ -65,4 +65,6 @@ urlpatterns = [
 
 
     path('api/dietitian/clients/', core_views.get_active_clients_view, name='active_clients_list'),
+
+    path('api/patient/reviews/submit/', core_views.submit_review_view, name='submit_review'),
 ]+ router.urls

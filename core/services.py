@@ -7,6 +7,8 @@ from django.db.models import Q
 from core.models import CustomUser
 from django.utils import timezone
 from .models import SystemNotification
+from rest_framework.exceptions import ValidationError
+from core.models import DietitianReview, CustomUser
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -186,3 +188,34 @@ def get_dietitian_notifications(dietitian_user):
         })
 
     return formatted_data
+
+
+def create_dietitian_review(patient_user, dietitian_id, rating, comment=""):
+    """
+    Service to handle saving a patient's review of a dietitian.
+    """
+    # 1. Validate the rating
+    try:
+        rating = int(rating)
+        if rating < 1 or rating > 5:
+            raise ValidationError("Rating must be between 1 and 5 stars.")
+    except (ValueError, TypeError):
+        raise ValidationError("Invalid rating format.")
+
+    # 2. Find the Dietitian
+    dietitian = CustomUser.objects.filter(id=dietitian_id).first()
+    if not dietitian:
+        raise ValidationError("Dietitian not found.")
+
+    # 3. Create or Update the review
+    # (Using update_or_create means if they review again, it updates their old one instead of spamming)
+    review, created = DietitianReview.objects.update_or_create(
+        patient=patient_user,
+        dietitian=dietitian,
+        defaults={
+            'rating': rating,
+            'comment': comment
+        }
+    )
+
+    return review

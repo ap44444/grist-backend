@@ -53,6 +53,8 @@ from .services import get_active_clients_list
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from .services import get_dietitian_notifications
+from rest_framework import status
+from .services import create_dietitian_review
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -808,3 +810,27 @@ def get_active_clients_view(request):
 def get_system_notifications_view(request):
     notifications_data = get_dietitian_notifications(request.user)
     return Response(notifications_data)
+
+
+@extend_schema(
+    summary="Submit Dietitian Review",
+    description="Allows a patient to submit a 1-5 star review for a dietitian.",
+    request=OpenApiTypes.OBJECT,  # Expecting { dietitian_id: 1, rating: 5, comment: "Great!" }
+    responses={201: OpenApiTypes.OBJECT}
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])  # Usually, only patients leave reviews!
+def submit_review_view(request):
+    dietitian_id = request.data.get('dietitian_id')
+    rating = request.data.get('rating')
+    comment = request.data.get('comment', '')
+
+    try:
+        review = create_dietitian_review(request.user, dietitian_id, rating, comment)
+        return Response({
+            "message": "Review submitted successfully!",
+            "review_id": review.id
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
