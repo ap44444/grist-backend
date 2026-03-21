@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from core.models import DietitianReview, CustomUser
 from rest_framework.exceptions import ValidationError
 from core.models import CustomUser, DietitianReview
+from django.db.models import Avg
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -241,3 +242,32 @@ def create_dietitian_review(patient_user, dietitian_id, dietitian_rating, call_q
         }
     )
     return review
+
+
+def get_dietitian_public_profile(dietitian_id):
+    """
+    Fetches the combined profile and review data for the Patient's view.
+    """
+    dietitian = CustomUser.objects.filter(id=dietitian_id).first()
+    if not dietitian:
+        return None
+
+    # Grab all reviews for this dietitian, newest first
+    reviews = DietitianReview.objects.filter(dietitian=dietitian).order_by('-created_at')
+
+    # Calculate the average rating
+    avg_rating = reviews.aggregate(Avg('dietitian_rating'))['dietitian_rating__avg'] or 0.0
+
+    return {
+        "id": dietitian.id,
+        "full_name": dietitian.get_full_name() or dietitian.username,
+        "profile_picture": getattr(dietitian.profile, 'profile_picture', None) if hasattr(dietitian,
+                                                                                          'profile') else None,
+        "email": dietitian.email,
+        # Formats the date exactly like the Figma: "Jan 12, 2024"
+        "date_of_registry": dietitian.date_joined.strftime("%b %d, %Y"),
+        "average_rating": round(avg_rating, 1),
+        "total_reviews": reviews.count(),
+        # We grab the 5 most recent reviews for that preview list at the bottom
+        "recent_reviews": reviews[:5]
+    }

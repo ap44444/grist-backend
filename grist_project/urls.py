@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/dietitian/appointments/', core_views.get_dietitian_appointments, name='dietitian_appointments_list'),
     path('api/dietitian/dashboard/today/', core_views.get_dietitian_dashboard, name='dietitian_dashboard'),
     path('api/dietitian/appointments/', core_views.get_dietitian_appointments, name='dietitian_appointments_list'),
+    path('api/patient/dietitians/<int:dietitian_id>/profile/', core_views.patient_view_dietitian_profile, name='patient_view_dietitian_profile'),
 
     # Profile and goals
     path('api/profile/', core_views.get_profile_data, name='get_profile_data'),

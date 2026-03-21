@@ -58,6 +58,7 @@ from rest_framework import viewsets, permissions
 from .models import DietitianReview
 from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
+from .services import get_dietitian_public_profile
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -853,3 +854,24 @@ def get_dietitian_reviews(request, dietitian_id):
         "average_rating": round(avg_rating, 1),
         "reviews": DietitianReviewSerializer(reviews, many=True).data
     })
+
+@extend_schema(
+    summary="Get Dietitian Profile (Patient View)",
+    description="Fetches the dietitian's contact info, average rating, and recent reviews.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def patient_view_dietitian_profile(request, dietitian_id):
+    # 1. Ask the service for the data
+    profile_data = get_dietitian_public_profile(dietitian_id)
+
+    if not profile_data:
+        return Response({"error": "Dietitian not found."}, status=404)
+
+    # 2. Serialize the preview list of reviews
+    serialized_reviews = DietitianReviewSerializer(profile_data['recent_reviews'], many=True).data
+    profile_data['recent_reviews'] = serialized_reviews
+
+    # 3. Send it to the Android app
+    return Response(profile_data)
