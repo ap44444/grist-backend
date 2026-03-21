@@ -19,7 +19,7 @@ urlpatterns = [
 
                   # Authentication
                   path('api/register/', core_views.RegisterView.as_view(), name='register'),
-                  # 👇 THIS IS THE FIX! We are now using your Custom view that includes the 'role'
+
                   path('api/login/', core_views.CustomLoginView.as_view(), name='login'),
                   path('api/logout/', core_views.logout_user, name='logout'),
                   path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

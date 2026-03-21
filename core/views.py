@@ -60,46 +60,47 @@ from .models import DietitianReview
 from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
 from .services import get_dietitian_public_profile
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 
+@extend_schema(
+    summary="User Registration & Onboarding",
+    request=RegisterSerializer,
+    responses={201: OpenApiTypes.OBJECT}
+)
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
+        print(f"--- REGISTRATION DATA RECEIVED: {request.data} ---")
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        from django.db import transaction
         with transaction.atomic():
-            # 1. Create the new User
             user = serializer.save()
-
-            # 2. FIX: Do NOT assume user.id == profile.id
-            # We explicitly ask for the Profile linked to THIS user object
             profile, created = UserProfile.objects.get_or_create(user=user)
-
             data = request.data
 
-            # 3. Save the data to the profile we just found/created
-            profile.height = data.get('height', profile.height)
-            profile.weight = data.get('weight', profile.weight)
             profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
             profile.gender = data.get('gender', profile.gender)
+            profile.height = data.get('height', profile.height)
+            profile.weight = data.get('weight', profile.weight)
+            profile.role = data.get('role', 'PATIENT')
             profile.save()
 
-            # 4. LOGGING: Look at your Railway logs to see these match!
-            print(f" NEW USER CREATED: ID {user.id} ({user.username})")
-            print(f" LINKED PROFILE: ID {profile.id} (Owner ID: {profile.user.id})")
-
         refresh = RefreshToken.for_user(user)
+        safe_role = profile.role if profile.role else "PATIENT"
+
         return Response({
             "message": "Account created successfully!",
-            "user_id": user.id,
-            "profile_id": profile.id,
+            "role": safe_role,
+            "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "refresh": str(refresh)
+            "is_new_user": True
         }, status=status.HTTP_201_CREATED)
 
 
@@ -893,3 +894,15 @@ def patient_view_dietitian_profile(request, dietitian_id):
 
     # 3. Send it to the Android app
     return Response(profile_data)
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['role'] = self.user.profile.role
+        data['message'] = "Login successful!"
+        data['is_new_user'] = False
+        return data
+
+class CustomLoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
