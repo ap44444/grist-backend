@@ -60,50 +60,50 @@ from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
 from .services import get_dietitian_public_profile
 
+from django.db import transaction  # Make sure this import is at the top!
+
+
 @extend_schema(
     summary="User Registration & Onboarding",
-    description="Creates a new user and immediately saves their onboarding data (height, weight, etc.). Returns JWT tokens.",
-    request=inline_serializer(
-        name='RegisterRequest',
-        fields={
-            'username': serializers.CharField(),
-            'password': serializers.CharField(),
-            'email': serializers.EmailField(),
-            'first_name': serializers.CharField(),
-            'last_name': serializers.CharField(),
-            'role': serializers.CharField(default='PATIENT'),
-            'date_of_birth': serializers.DateField(help_text="Format: YYYY-MM-DD"),
-            'gender': serializers.CharField(),
-            'height': serializers.FloatField(),
-            'weight': serializers.FloatField(),
-        }
-    ),
     responses={201: OpenApiTypes.OBJECT}
 )
-def create(self, request, *args, **kwargs):
-    print(f"--- REGISTRATION ATTEMPT ---")
-    print(f"Raw Data: {request.data}")
+class RegisterView(generics.CreateAPIView):
+    queryset = CustomUser.objects.all()
+    permission_classes = (AllowAny,)
+    serializer_class = RegisterSerializer
 
-    serializer = self.get_serializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
+    def create(self, request, *args, **kwargs):
+        # DEBUG: This will print the EXACT keys the Android app is sending to your Railway logs
+        print(f"DEBUG RECEIVE: {request.data}")
 
-    with transaction.atomic():
-        user = serializer.save()
-        profile, created = UserProfile.objects.get_or_create(user=user)
-        data = request.data
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        # Log exactly what we are trying to save
-        print(f"Saving to Profile ID {profile.id}: Height={data.get('height')}, Weight={data.get('weight')}")
+        # ATOMIC SAVE: Ensures data goes to the NEW user, not the old one
+        with transaction.atomic():
+            user = serializer.save()
+            profile = user.profile
+            data = request.data
 
-        profile.height = data.get('height', profile.height)
-        profile.weight = data.get('weight', profile.weight)
-        profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
-        profile.gender = data.get('gender', profile.gender)
-        profile.save()
-        print("Profile Save Called Successfully")
+            # Use .get() but check for both common naming styles
+            profile.height = data.get('height') or data.get('height_cm') or profile.height
+            profile.weight = data.get('weight') or data.get('weight_kg') or profile.weight
+            profile.date_of_birth = data.get('date_of_birth') or data.get('dob') or profile.date_of_birth
+            profile.gender = data.get('gender', profile.gender)
+            profile.role = data.get('role', 'PATIENT')
 
-    refresh = RefreshToken.for_user(user)
-    return Response({"message": "Success"}, status=201)
+            profile.save()
+            print(f"DEBUG SAVE: Profile updated for {user.username}")
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "message": "Account created successfully!",
+            "role": profile.role,
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "is_new_user": True
+        }, status=status.HTTP_201_CREATED)
 
 @extend_schema(
     summary="Request AI Meal Recipe",
