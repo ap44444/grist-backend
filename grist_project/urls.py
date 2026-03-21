@@ -6,8 +6,14 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 from core.views import AppointmentViewSet
 
+from rest_framework.routers import DefaultRouter
+from core.views import PatientNoteViewSet
+
 router = DefaultRouter()
 router.register(r'appointments', AppointmentViewSet, basename='appointment')
+
+router = DefaultRouter()
+router.register(r'api/notes', PatientNoteViewSet, basename='patient-notes')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -66,4 +72,7 @@ urlpatterns = [
     path('api/dietitian/clients/', core_views.get_active_clients_view, name='active_clients_list'),
 
     path('api/patient/reviews/submit/', core_views.submit_review_view, name='submit_review'),
+
+    path('api/profile/upload-picture/', core_views.upload_profile_picture, name='upload_picture'),
+
 ]+ router.urls
