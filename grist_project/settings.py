@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'core',
     'import_export',
     'rest_framework',
+    'drf_spectacular',
     'rest_framework.authtoken',
     'dj_rest_auth',
     'dj_rest_auth.registration',
@@ -146,8 +147,10 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+
     )
 }
 SIMPLE_JWT = {
