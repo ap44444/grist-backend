@@ -13,21 +13,30 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['user']
 
 class RegisterSerializer(serializers.ModelSerializer):
+
+    height = serializers.FloatField(required=False, write_only=True)
+    weight = serializers.FloatField(required=False, write_only=True)
+    date_of_birth = serializers.DateField(required=False, write_only=True)
+    gender = serializers.CharField(required=False, write_only=True)
+    role = serializers.CharField(required=False, write_only=True, default='PATIENT')
+
     class Meta:
         model = CustomUser
-        fields = ('username', 'password', 'email')
-        #  ensures the password is never sent back in an API response
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = ('username', 'password', 'email', 'height', 'weight', 'date_of_birth', 'gender', 'role')
+        extra_kwargs = {
+            'password': {'write_only': True},
+            'email': {'required': True}
+        }
 
     def create(self, validated_data):
-
+        #  pop the profile data out so create_user doesn't get confused
+        # create_user ONLY wants username, email, and password.
         user = CustomUser.objects.create_user(
             username=validated_data['username'],
             email=validated_data.get('email', ''),
             password=validated_data['password']
         )
         return user
-
 # --- GROCERY CART SERIALIZERS ---
 class GroceryCartItemSerializer(serializers.ModelSerializer):
     # This automatically runs get_item_name() function so the frontend gets the real text!
