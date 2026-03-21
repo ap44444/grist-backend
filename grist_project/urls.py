@@ -59,4 +59,7 @@ urlpatterns = [
 
     #profile picture
     path('api/profile/upload-picture/', core_views.upload_profile_picture, name='upload_picture'),
+
+
+    path('api/dietitian/clients/', core_views.get_active_clients_view, name='active_clients_list'),
 ]+ router.urls

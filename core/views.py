@@ -49,6 +49,9 @@ from rest_framework import viewsets
 from .models import Appointment
 from .serializers import AppointmentSerializer
 from .services import get_dietitian_profile_stats
+from .services import get_active_clients_list
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -773,3 +776,23 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 def get_dietitian_profile_view(request):
     profile_data = get_dietitian_profile_stats(request.user)
     return Response(profile_data)
+
+
+@extend_schema(
+    summary="Get Dietitian Active Clients",
+    description="Returns a list of clients. Use the ?search= query parameter to filter by name.",
+    parameters=[
+        OpenApiParameter("search", OpenApiTypes.STR, description="Search by client name", required=False)
+    ],
+    responses={200: OpenApiTypes.ARRAY}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def get_active_clients_view(request):
+    # Grab the text from the search bar (if they typed anything)
+    search_query = request.query_params.get('search', None)
+
+    # Run our math/database service
+    clients_data = get_active_clients_list(request.user, search_query)
+
+    return Response(clients_data)

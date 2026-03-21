@@ -3,6 +3,8 @@ from django.utils import timezone
 from .models import WeeklyPlan, RecipeIngredient
 from django.db.models import Avg
 from core.models import DietitianReview, CustomUser
+from django.db.models import Q
+from core.models import CustomUser
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -115,3 +117,43 @@ def get_dietitian_profile_stats(user):
         },
         "active_clients": clients_data
     }
+
+
+def get_active_clients_list(dietitian_user, search_query=None):
+    """
+    Fetches all active clients for a dietitian and applies an optional search filter.
+    """
+    try:
+        from core.models import Appointment
+        #  Get unique patient IDs who have a confirmed appointment
+        active_patient_ids = Appointment.objects.filter(
+            dietitian=dietitian_user,
+            status='CONFIRMED'
+        ).values_list('patient_id', flat=True).distinct()
+
+        #  Grab those specific users from the database
+        clients = CustomUser.objects.filter(id__in=active_patient_ids)
+
+        # 3. Apply the search filter if the Android app sent one
+        if search_query:
+            clients = clients.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(username__icontains=search_query)
+            )
+
+        # Package the data for the UI
+        clients_data = []
+        for client in clients:
+            general_profile = getattr(client, 'profile', None)
+            clients_data.append({
+                "id": client.id,
+                "name": client.get_full_name() or client.username,
+                "profile_picture_url": getattr(general_profile, 'profile_picture', None)
+            })
+
+        return clients_data
+
+    except ImportError:
+        # Failsafe if the Appointment model isn't merged yet
+        return []
