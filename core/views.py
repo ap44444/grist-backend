@@ -73,38 +73,28 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
-        # DEBUG: This will print the EXACT keys the Android app is sending to your Railway logs
-        print(f"DEBUG RECEIVE: {request.data}")
-
+        # Atomic logic to prevent data from saving to the wrong user
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # ATOMIC SAVE: Ensures data goes to the NEW user, not the old one
+        from django.db import transaction
         with transaction.atomic():
             user = serializer.save()
             profile = user.profile
             data = request.data
 
-            # Use .get() but check for both common naming styles
-            profile.height = data.get('height') or data.get('height_cm') or profile.height
-            profile.weight = data.get('weight') or data.get('weight_kg') or profile.weight
-            profile.date_of_birth = data.get('date_of_birth') or data.get('dob') or profile.date_of_birth
-            profile.gender = data.get('gender', profile.gender)
-            profile.role = data.get('role', 'PATIENT')
-
+            # Save onboarding data directly to THIS specific user
+            profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+            profile.height = data.get('height', profile.height)
+            profile.weight = data.get('weight', profile.weight)
             profile.save()
-            print(f"DEBUG SAVE: Profile updated for {user.username}")
 
         refresh = RefreshToken.for_user(user)
-
         return Response({
-            "message": "Account created successfully!",
-            "role": profile.role,
-            "refresh": str(refresh),
+            "message": "User created and profile initialized!",
             "access": str(refresh.access_token),
-            "is_new_user": True
+            "refresh": str(refresh)
         }, status=status.HTTP_201_CREATED)
-
 @extend_schema(
     summary="Request AI Meal Recipe",
     parameters=[
