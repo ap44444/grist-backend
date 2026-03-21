@@ -463,21 +463,25 @@ def update_profile(request):
     profile = request.user.profile
     data = request.data
 
-    # 1. Update Basic Info (Using .get() to avoid errors if a field is missing)
+    # (Using .get() safely keeps the old data if the app forgets to send it)
+    profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+    profile.gender = data.get('gender', profile.gender)
+
+
+    if hasattr(profile, 'country'):
+        profile.country = data.get('country', profile.country)
+
+        # The physical stats
     profile.height = data.get('height', profile.height)
     profile.weight = data.get('weight', profile.weight)
     profile.target_weight = data.get('target_weight', profile.target_weight)
     profile.target_calories = data.get('target_calories', profile.target_calories)
 
-    # 2. Update Dietary Preference (The main choice)
+    # -Preferences and Tags
     if 'dietary_preference' in data:
         profile.dietary_preference = data['dietary_preference']
-
-    # 3. Handle the Tags (Vegetarian, No Shellfish, etc.)
-    # We store these in your JSONFields (allergies, foods_to_avoid)
     if 'allergies' in data:
-        profile.allergies = data['allergies']  # Kotlin sends: ["No Shellfish"]
-
+        profile.allergies = data['allergies']
     if 'medical_conditions' in data:
         profile.medical_conditions = data['medical_conditions']
 
@@ -485,15 +489,14 @@ def update_profile(request):
 
     return Response({
         "status": "success",
-        "message": "Profile updated!",
+        "message": "Profile and onboarding data saved successfully!",
         "current_data": {
             "weight": profile.weight,
-            "target_calories": profile.target_calories,
-            "dietary_preference": profile.dietary_preference,
-            "allergies": profile.allergies
+            "height": profile.height,
+            "date_of_birth": profile.date_of_birth,
+            "gender": profile.gender
         }
     })
-
 class UserProfileCRUDView(APIView):
     """
     Handles Create (handled by registration), Read, Update, and Delete
