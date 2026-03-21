@@ -86,30 +86,44 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
+        # 1. Create the User
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
 
-        # Update the profile created by signals with the onboarding data
-        profile = user.profile
-        data = request.data
+        # We use a 'transaction' to ensure if the profile save fails, the user isn't created
+        from django.db import transaction
+        with transaction.atomic():
+            user = serializer.save()
+            profile = user.profile
+            data = request.data
 
-        profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
-        profile.gender = data.get('gender', profile.gender)
-        profile.height = data.get('height', profile.height)
-        profile.weight = data.get('weight', profile.weight)
-        profile.role = data.get('role', 'PATIENT')
-        profile.save()
+            # 2. MANUALLY FORCE the data onto THIS specific user's profile
+            # We don't use request.user here because that might be the 'old' person!
+            profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+            profile.gender = data.get('gender', profile.gender)
+            profile.height = data.get('height', profile.height)
+            profile.weight = data.get('weight', profile.weight)
+            profile.role = data.get('role', 'PATIENT')
 
+            # Double check: does your model have 'country' or 'location'?
+            # If it's location, use profile.location = data.get('country')
+            if hasattr(profile, 'country'):
+                profile.country = data.get('country', profile.country)
+
+            profile.save()
+
+        # 3. Generate the NEW tokens for THIS new user
         refresh = RefreshToken.for_user(user)
 
         return Response({
-            "message": "Account created successfully!",
+            "message": "Account created and profile initialized!",
             "role": profile.role,
             "refresh": str(refresh),
             "access": str(refresh.access_token),
             "is_new_user": True
         }, status=status.HTTP_201_CREATED)
+
+
 @extend_schema(
     summary="Request AI Meal Recipe",
     parameters=[
