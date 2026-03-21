@@ -22,7 +22,7 @@ class DieticianProfile(models.Model):
     bio = models.TextField(blank=True)
 
 
-# --- MODULE 2: FOOD ENGINE (AI READY) ---
+# --- FOOD ENGINE (AI READY) ---
 class Ingredient(models.Model):
     name = models.CharField(max_length=200, db_index=True)
     calories = models.IntegerField(help_text="Per 100g")
@@ -219,6 +219,30 @@ class GroceryCartItem(models.Model):
 
     def get_item_name(self):
         return self.ingredient.name if self.ingredient else self.custom_name
+
+#Mihindi - (dietician code)
+# --- DIETITIAN PATIENT NOTES ---
+class PatientNote(models.Model):
+    dietitian = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='written_notes',
+        limit_choices_to={'profile__role': 'DIETITIAN'}
+    )
+    patient = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='received_notes'
+    )
+    note_text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']  # Most recent notes first
+
+    def __str__(self):
+        return f"Note by {self.dietitian.username} on {self.patient.username} ({self.created_at.date()})"
 
 # "receiver" listens for when a CustomUser is saved
 @receiver(post_save, sender=CustomUser)
