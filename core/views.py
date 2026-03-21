@@ -28,7 +28,7 @@ import socket
 from django.conf import settings
 from django.db.models import Avg
 from .models import DietitianReview
-from .serializers import ReviewSerializer
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
 import cloudinary.uploader
@@ -583,22 +583,7 @@ def submit_review(request, dietitian_id):
     description="Returns all reviews for a dietitian and their average rating.",
     responses={200: OpenApiTypes.OBJECT}
 )
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_dietitian_reviews(request, dietitian_id):
-    dietitian = get_object_or_404(CustomUser, id=dietitian_id)
-    reviews = DietitianReview.objects.filter(dietitian=dietitian).order_by('-created_at')
 
-    # Let the database calculate the exact average instantly!
-    avg_rating = reviews.aggregate(Avg('rating'))['rating__avg']
-
-    return Response({
-        "dietitian_name": dietitian.get_full_name() or dietitian.username,
-        "total_reviews": reviews.count(),
-        # Round the average to 1 decimal place (e.g., 4.7)
-        "average_rating": round(avg_rating, 1) if avg_rating else 0.0,
-        "reviews": ReviewSerializer(reviews, many=True).data
-    })
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -815,30 +800,23 @@ def get_system_notifications_view(request):
     return Response(notifications_data)
 
 
+
+
+
+
+# --- THE VIEWS ---
 @extend_schema(
     summary="Submit Dietitian Review",
-    description="Allows a patient to submit a 1-5 star review for a dietitian.",
-    request=OpenApiTypes.OBJECT,  # Expecting { dietitian_id: 1, rating: 5, comment: "Great!" }
+    description="Submit a dual-rating review with tags.",
+    request=inline_serializer(name='SubmitReview', fields={
+        'dietitian_id': serializers.IntegerField(),
+        'dietitian_rating': serializers.IntegerField(),
+        'call_quality_rating': serializers.IntegerField(),
+        'tags': serializers.ListField(child=serializers.CharField(), required=False),
+        'comment': serializers.CharField(required=False)
+    }),
     responses={201: OpenApiTypes.OBJECT}
 )
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])  # Usually, only patients leave reviews!
-def submit_review_view(request):
-    dietitian_id = request.data.get('dietitian_id')
-    rating = request.data.get('rating')
-    comment = request.data.get('comment', '')
-
-    try:
-        review = create_dietitian_review(request.user, dietitian_id, rating, comment)
-        return Response({
-            "message": "Review submitted successfully!",
-            "review_id": review.id
-        }, status=status.HTTP_201_CREATED)
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def submit_review_view(request):
@@ -847,11 +825,31 @@ def submit_review_view(request):
         review = create_dietitian_review(
             patient_user=request.user,
             dietitian_id=data.get('dietitian_id'),
-            dietitian_rating=data.get('dietitian_rating'),
-            call_quality_rating=data.get('call_quality_rating'),
+            dietitian_rating=data.get('dietitian_rating', 5),
+            call_quality_rating=data.get('call_quality_rating', 5),
             tags=data.get('tags', []),
             comment=data.get('comment', '')
         )
-        return Response({"message": "Review submitted!"}, status=201)
+        return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
     except Exception as e:
-        return Response({"error": str(e)}, status=400)
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@extend_schema(
+    summary="Get Dietitian Reviews",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_dietitian_reviews(request, dietitian_id):
+    dietitian = get_object_or_404(CustomUser, id=dietitian_id)
+    reviews = DietitianReview.objects.filter(dietitian=dietitian).order_by('-created_at')
+
+    # Calculate average using the new dietitian_rating field
+    avg_rating = reviews.aggregate(Avg('dietitian_rating'))['dietitian_rating__avg'] or 0.0
+
+    return Response({
+        "dietitian_name": dietitian.get_full_name() or dietitian.username,
+        "total_reviews": reviews.count(),
+        "average_rating": round(avg_rating, 1),
+        "reviews": DietitianReviewSerializer(reviews, many=True).data
+    })

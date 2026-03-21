@@ -55,9 +55,9 @@ urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 
-    #Dietician ratings
-    path('api/dietitians/<int:dietitian_id>/review/', core_views.submit_review, name='submit_review'),
-    path('api/dietitians/<int:dietitian_id>/reviews/', core_views.get_dietitian_reviews, name='get_reviews'),
+                  # Dietitian ratings and reviews
+    path('api/dietitians/<int:dietitian_id>/reviews/', core_views.get_dietitian_reviews,name='get_reviews'),
+    path('api/patient/reviews/submit/', core_views.submit_review_view, name='submit_review_view'),
 
     #profile picture
     path('api/profile/upload-picture/', core_views.upload_profile_picture, name='upload_picture'),

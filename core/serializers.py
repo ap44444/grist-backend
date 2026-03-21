@@ -45,14 +45,6 @@ class GroceryCartSerializer(serializers.ModelSerializer):
         model = GroceryCart
         fields = ['id', 'updated_at', 'items']
 
-class ReviewSerializer(serializers.ModelSerializer):
-    # grabs the patient's name so the app can display "Reviewed by "
-    patient_name = serializers.CharField(source='patient.username', read_only=True)
-
-    class Meta:
-        model = DietitianReview
-        fields = ['id', 'patient_name', 'rating', 'comment', 'created_at']
-
 class AppointmentSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.get_full_name', read_only=True)
     dietitian_name = serializers.CharField(source='dietitian.get_full_name', read_only=True)
@@ -66,19 +58,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['patient', 'status', 'meeting_link']
 
-def create_dietitian_review(patient_user, dietitian_id, dietitian_rating, call_quality_rating, tags=None, comment=""):
-    dietitian = CustomUser.objects.filter(id=dietitian_id).first()
-    if not dietitian:
-        raise ValidationError("Dietitian not found.")
+class DietitianReviewSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.get_full_name', read_only=True)
 
-    review, created = DietitianReview.objects.update_or_create(
-        patient=patient_user,
-        dietitian=dietitian,
-        defaults={
-            'dietitian_rating': int(dietitian_rating),
-            'call_quality_rating': int(call_quality_rating),
-            'tags': tags or [],
-            'comment': comment
-        }
-    )
-    return review
+    class Meta:
+        model = DietitianReview
+        fields = [
+            'id', 'patient_name', 'dietitian',
+            'dietitian_rating', 'call_quality_rating',
+            'tags', 'comment', 'created_at'
+        ]
+        read_only_fields = ['id', 'patient_name', 'created_at']

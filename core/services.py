@@ -9,6 +9,8 @@ from django.utils import timezone
 from .models import SystemNotification
 from rest_framework.exceptions import ValidationError
 from core.models import DietitianReview, CustomUser
+from rest_framework.exceptions import ValidationError
+from core.models import CustomUser, DietitianReview
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -218,4 +220,24 @@ def create_dietitian_review(patient_user, dietitian_id, rating, comment=""):
         }
     )
 
+    return review
+
+def create_dietitian_review(patient_user, dietitian_id, dietitian_rating, call_quality_rating, tags=None, comment=""):
+    """
+    Handles the business logic for creating or updating a dietitian review.
+    """
+    dietitian = CustomUser.objects.filter(id=dietitian_id).first()
+    if not dietitian:
+        raise ValidationError("Dietitian not found.")
+
+    review, created = DietitianReview.objects.update_or_create(
+        patient=patient_user,
+        dietitian=dietitian,
+        defaults={
+            'dietitian_rating': int(dietitian_rating),
+            'call_quality_rating': int(call_quality_rating),
+            'tags': tags or [],
+            'comment': comment
+        }
+    )
     return review
