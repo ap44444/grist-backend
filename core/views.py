@@ -775,7 +775,7 @@ def get_dietitian_profile_view(request):
     parameters=[
         OpenApiParameter("search", OpenApiTypes.STR, description="Search by client name", required=False)
     ],
-    responses={200: OpenApiTypes.ARRAY}
+    responses={200: OpenApiTypes.ANY}
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsDietitian])
@@ -791,7 +791,7 @@ def get_active_clients_view(request):
 @extend_schema(
     summary="Get Dietitian System Notifications",
     description="Returns the one-way system alerts (appointments, questionnaires) for the dietitian.",
-    responses={200: OpenApiTypes.ARRAY}
+    responses={200: OpenApiTypes.ANY}
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsDietitian])

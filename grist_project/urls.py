@@ -21,8 +21,7 @@ urlpatterns = [
     path('api/login/', TokenObtainPairView.as_view(), name='login'),
     path('api/logout/', core_views.logout_user, name='logout'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/auth/google/', GoogleLogin.as_view(), name='google_login'),
-
+    path('api/auth/google/', core_views.GoogleLogin.as_view(), name='google_login'),
     # Dashboard and stats
     path('api/dashboard/today/', core_views.get_dashboard_data, name='dashboard_today'),
     path('api/stats/progress/', core_views.get_progress_stats, name='progress_stats'),
