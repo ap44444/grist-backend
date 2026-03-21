@@ -60,29 +60,37 @@ from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
 from .services import get_dietitian_public_profile
 
+
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
-        # 1. Run the standard serializer to create the user in the database
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # 2. Automatically generate JWT tokens so the app can log them in instantly
+        # Update the profile created by signals with the onboarding data
+        profile = user.profile
+        data = request.data
+
+        profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+        profile.gender = data.get('gender', profile.gender)
+        profile.height = data.get('height', profile.height)
+        profile.weight = data.get('weight', profile.weight)
+        profile.role = data.get('role', 'PATIENT')
+        profile.save()
+
         refresh = RefreshToken.for_user(user)
 
-        # 3. Return the EXACT JSON format the Android app's Moshi parser is waiting for
         return Response({
             "message": "Account created successfully!",
-            "role": user.profile.role if hasattr(user, 'profile') else "PATIENT",
+            "role": profile.role,
             "refresh": str(refresh),
             "access": str(refresh.access_token),
             "is_new_user": True
         }, status=status.HTTP_201_CREATED)
-
 @extend_schema(
     summary="Request AI Meal Recipe",
     parameters=[
