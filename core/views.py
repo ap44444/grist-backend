@@ -48,6 +48,7 @@ from rest_framework import status
 from rest_framework import viewsets
 from .models import Appointment
 from .serializers import AppointmentSerializer
+from .services import get_dietitian_profile_stats
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -762,3 +763,13 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Auto-assign the logged-in user as the patient
         serializer.save(patient=self.request.user)
+
+@extend_schema(
+    summary="Get Dietitian Profile & Active Clients",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def get_dietitian_profile_view(request):
+    profile_data = get_dietitian_profile_stats(request.user)
+    return Response(profile_data)

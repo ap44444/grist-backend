@@ -1,7 +1,8 @@
 from datetime import timedelta
 from django.utils import timezone
 from .models import WeeklyPlan, RecipeIngredient
-
+from django.db.models import Avg
+from core.models import DietitianReview, CustomUser
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -67,4 +68,50 @@ def get_daily_nutritional_summary(daily_plan):
         "proteins": round(total_protein),
         "carbs": round(total_carbs),
         "fats": round(total_fats)
+    }
+
+
+def get_dietitian_profile_stats(user):
+    """
+    Service function to calculate all stats and aggregate data
+    for the Dietitian Profile screen.
+    """
+    # 1. Grab their profiles
+    dietitian_profile = getattr(user, 'dietician_profile', None)
+    general_profile = getattr(user, 'profile', None)
+
+    # 2. Calculate average rating and total reviews
+    reviews = DietitianReview.objects.filter(dietitian=user)
+    avg_rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0.0
+    review_count = reviews.count()
+
+    # 3. Find "Active Clients" (Patients who have confirmed appointments)
+    try:
+        from .models import Appointment
+        active_patient_ids = Appointment.objects.filter(
+            dietitian=user,
+            status='CONFIRMED'
+        ).values_list('patient_id', flat=True).distinct()
+
+        active_clients = CustomUser.objects.filter(id__in=active_patient_ids)
+    except ImportError:
+        active_clients = []
+
+    clients_data = [
+        {"id": client.id, "name": client.get_full_name() or client.username}
+        for client in active_clients
+    ]
+
+    # 4. Return the clean dictionary
+    return {
+        "full_name": f"Dr. {user.get_full_name() or user.username}",
+        "profile_picture_url": getattr(general_profile, 'profile_picture', None),
+        "rating": round(avg_rating, 1),
+        "review_count": review_count,
+        "basic_information": {
+            "serial_number": getattr(dietitian_profile, 'license_number', 'N/A'),
+            "email": user.email,
+            "date_of_registry": user.date_joined.strftime("%b %d, %Y")
+        },
+        "active_clients": clients_data
     }

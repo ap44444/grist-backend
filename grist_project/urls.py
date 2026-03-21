@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/profile/update/', core_views.update_profile, name='update_profile'),
     path('api/profile/calculate-targets/', core_views.calculate_and_save_calories, name='calculate_targets'),
     path('api/profile/manage/', core_views.UserProfileCRUDView.as_view(), name='manage-profile'),
+    path('api/dietitian/profile/', core_views.get_dietitian_profile_view, name='dietitian_profile'),
     # Daily tracking
     path('api/track/water/', core_views.track_water, name='track_water'),
     path('api/track/meal/<int:meal_slot_id>/', core_views.track_meal, name='track_meal'),
