@@ -112,6 +112,31 @@ class ConsultationRequest(models.Model):
     status = models.CharField(max_length=20, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
+
+class Appointment(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('CONFIRMED', 'Confirmed'),
+        ('CANCELLED', 'Cancelled'),
+        ('COMPLETED', 'Completed'),
+    ]
+    MEETING_CHOICES = [
+        ('VIDEO', 'Video Call'),
+        ('IN_PERSON', 'In Person')
+    ]
+    patient = models.ForeignKey(CustomUser, related_name='my_appointments', on_delete=models.CASCADE)
+    dietitian = models.ForeignKey(CustomUser, related_name='dietitian_appointments', on_delete=models.CASCADE)
+    date = models.DateField()
+    time = models.TimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    appointment_type = models.CharField(max_length=100, default='General Consultation')
+    meeting_type = models.CharField(max_length=20, choices=MEETING_CHOICES, default='VIDEO')
+    meeting_link = models.URLField(blank=True, null=True, help_text="Zoom/Google Meet link")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.patient.username} with {self.dietitian.username} on {self.date}"
+
 class ShoppingList(models.Model):
     plan = models.OneToOneField(WeeklyPlan, on_delete=models.CASCADE, related_name='shopping_list')
     generated_at = models.DateTimeField(auto_now_add=True)

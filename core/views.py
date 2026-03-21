@@ -45,6 +45,9 @@ from rest_framework.response import Response
 from .models import ConsultationRequest, ChatMessage
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
+from rest_framework import viewsets
+from .models import Appointment
+from .serializers import AppointmentSerializer
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -744,3 +747,18 @@ def get_dietitian_appointments(request):
             "today": [],
             "future": []
         })
+
+class AppointmentViewSet(viewsets.ModelViewSet):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # SECURITY: If it's a dietitian, show their schedule. If a patient, show their bookings.
+        user = self.request.user
+        if hasattr(user, 'profile') and user.profile.role == 'DIETITIAN':
+            return Appointment.objects.filter(dietitian=user).order_by('date', 'time')
+        return Appointment.objects.filter(patient=user).order_by('date', 'time')
+
+    def perform_create(self, serializer):
+        # Auto-assign the logged-in user as the patient
+        serializer.save(patient=self.request.user)

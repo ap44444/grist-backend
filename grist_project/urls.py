@@ -4,6 +4,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core import views as core_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from core.views import GoogleLogin
+from rest_framework.routers import DefaultRouter
+from core.views import AppointmentViewSet
+
+router = DefaultRouter()
+router.register(r'appointments', AppointmentViewSet, basename='appointment')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -19,6 +24,8 @@ urlpatterns = [
     # Dashboard and stats
     path('api/dashboard/today/', core_views.get_dashboard_data, name='dashboard_today'),
     path('api/stats/progress/', core_views.get_progress_stats, name='progress_stats'),
+    path('api/dietitian/dashboard/today/', core_views.get_dietitian_dashboard, name='dietitian_dashboard'),
+    path('api/dietitian/appointments/', core_views.get_dietitian_appointments, name='dietitian_appointments_list'),
     path('api/dietitian/dashboard/today/', core_views.get_dietitian_dashboard, name='dietitian_dashboard'),
     path('api/dietitian/appointments/', core_views.get_dietitian_appointments, name='dietitian_appointments_list'),
 
@@ -51,4 +58,4 @@ urlpatterns = [
 
     #profile picture
     path('api/profile/upload-picture/', core_views.upload_profile_picture, name='upload_picture'),
-]
+]+ router.urls

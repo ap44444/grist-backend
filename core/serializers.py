@@ -3,6 +3,7 @@ from .models import UserProfile
 from core.models import CustomUser
 from .models import GroceryCart, GroceryCartItem
 from .models import DietitianReview
+from .models import Appointment
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -50,3 +51,16 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = DietitianReview
         fields = ['id', 'patient_name', 'rating', 'comment', 'created_at']
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.get_full_name', read_only=True)
+    dietitian_name = serializers.CharField(source='dietitian.get_full_name', read_only=True)
+
+    class Meta:
+        model = Appointment
+        fields = [
+            'id', 'patient', 'patient_name', 'dietitian', 'dietitian_name',
+            'date', 'time', 'status', 'appointment_type', 'meeting_type',
+            'meeting_link', 'created_at'
+        ]
+        read_only_fields = ['patient', 'status', 'meeting_link']
