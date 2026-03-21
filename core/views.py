@@ -457,7 +457,7 @@ def get_progress_stats(request):
     return Response(progress_data)
 
 
-@api_view(['PATCH'])
+@api_view(['PATCH', 'POST'])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
     profile = request.user.profile
