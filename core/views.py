@@ -62,48 +62,44 @@ from .services import create_dietitian_review
 from .services import get_dietitian_public_profile
 
 
-@extend_schema(
-    summary="User Registration & Onboarding",
-    request=RegisterSerializer,
-    responses={201: OpenApiTypes.OBJECT}
-)
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
-        # DEBUG: See what the Android app is actually sending
-        print(f"--- REGISTRATION DATA RECEIVED: {request.data} ---")
-
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        from django.db import transaction
         with transaction.atomic():
-            # 1. Create the user
+            # 1. Create the new User
             user = serializer.save()
-            # 2. Get the profile specifically for THIS new user
-            profile = user.profile
+
+            # 2. FIX: Do NOT assume user.id == profile.id
+            # We explicitly ask for the Profile linked to THIS user object
+            profile, created = UserProfile.objects.get_or_create(user=user)
+
             data = request.data
 
-            # 3. Save onboarding data directly to THIS user instance
-            # Using .get() ensures we don't crash if a field is missing
-            profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
-            profile.gender = data.get('gender', profile.gender)
+            # 3. Save the data to the profile we just found/created
             profile.height = data.get('height', profile.height)
             profile.weight = data.get('weight', profile.weight)
-            profile.role = data.get('role', 'PATIENT')
+            profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+            profile.gender = data.get('gender', profile.gender)
             profile.save()
 
-            print(f"--- SUCCESS: Profile for {user.username} initialized ---")
+            # 4. LOGGING: Look at your Railway logs to see these match!
+            print(f" NEW USER CREATED: ID {user.id} ({user.username})")
+            print(f" LINKED PROFILE: ID {profile.id} (Owner ID: {profile.user.id})")
 
         refresh = RefreshToken.for_user(user)
         return Response({
             "message": "Account created successfully!",
-            "role": profile.role,
-            "refresh": str(refresh),
+            "user_id": user.id,
+            "profile_id": profile.id,
             "access": str(refresh.access_token),
-            "is_new_user": True
+            "refresh": str(refresh)
         }, status=status.HTTP_201_CREATED)
 
 
@@ -487,39 +483,34 @@ def update_profile(request):
     profile = request.user.profile
     data = request.data
 
-    # (Using .get() safely keeps the old data if the app forgets to send it)
-    profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+    # 1. Match the exact keys from the Android 'ProfileUpdateRequest'
     profile.gender = data.get('gender', profile.gender)
-
-
-    if hasattr(profile, 'country'):
-        profile.country = data.get('country', profile.country)
-
-        # The physical stats
+    profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
     profile.height = data.get('height', profile.height)
     profile.weight = data.get('weight', profile.weight)
-    profile.target_weight = data.get('target_weight', profile.target_weight)
-    profile.target_calories = data.get('target_calories', profile.target_calories)
 
-    # -Preferences and Tags
-    if 'dietary_preference' in data:
-        profile.dietary_preference = data['dietary_preference']
+    # These were missing in our previous version!
+    profile.primary_goal = data.get('primary_goal', profile.primary_goal)
+    profile.activity_level = data.get('activity_level', profile.activity_level)
+
+    # Handing the Lists (Allergies, etc.)
     if 'allergies' in data:
         profile.allergies = data['allergies']
+    if 'dietary_preference' in data:
+        profile.dietary_preference = data['dietary_preference']
     if 'medical_conditions' in data:
         profile.medical_conditions = data['medical_conditions']
+
+    # New fields found in the Android model
+    if 'country' in data:
+        profile.country = data['country']
 
     profile.save()
 
     return Response({
         "status": "success",
-        "message": "Profile and onboarding data saved successfully!",
-        "current_data": {
-            "weight": profile.weight,
-            "height": profile.height,
-            "date_of_birth": profile.date_of_birth,
-            "gender": profile.gender
-        }
+        "message": "Profile updated with all Android onboarding data!",
+        "received_keys": list(data.keys())  # Helps the Android dev debug
     })
 class UserProfileCRUDView(APIView):
     """
