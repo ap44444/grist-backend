@@ -1,3 +1,4 @@
+from django.db import transaction
 from .serializers import UserProfileSerializer
 from .ai_service import generate_and_save_meal
 from rest_framework import generics
@@ -60,11 +61,10 @@ from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
 from .services import get_dietitian_public_profile
 
-from django.db import transaction  # Make sure this import is at the top!
-
 
 @extend_schema(
     summary="User Registration & Onboarding",
+    request=RegisterSerializer,
     responses={201: OpenApiTypes.OBJECT}
 )
 class RegisterView(generics.CreateAPIView):
@@ -73,28 +73,40 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
-        # Atomic logic to prevent data from saving to the wrong user
+        # DEBUG: See what the Android app is actually sending
+        print(f"--- REGISTRATION DATA RECEIVED: {request.data} ---")
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        from django.db import transaction
         with transaction.atomic():
+            # 1. Create the user
             user = serializer.save()
+            # 2. Get the profile specifically for THIS new user
             profile = user.profile
             data = request.data
 
-            # Save onboarding data directly to THIS specific user
+            # 3. Save onboarding data directly to THIS user instance
+            # Using .get() ensures we don't crash if a field is missing
             profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+            profile.gender = data.get('gender', profile.gender)
             profile.height = data.get('height', profile.height)
             profile.weight = data.get('weight', profile.weight)
+            profile.role = data.get('role', 'PATIENT')
             profile.save()
+
+            print(f"--- SUCCESS: Profile for {user.username} initialized ---")
 
         refresh = RefreshToken.for_user(user)
         return Response({
-            "message": "User created and profile initialized!",
+            "message": "Account created successfully!",
+            "role": profile.role,
+            "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "refresh": str(refresh)
+            "is_new_user": True
         }, status=status.HTTP_201_CREATED)
+
+
 @extend_schema(
     summary="Request AI Meal Recipe",
     parameters=[
