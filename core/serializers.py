@@ -78,3 +78,18 @@ class DietitianReviewSerializer(serializers.ModelSerializer):
             'tags', 'comment', 'created_at'
         ]
         read_only_fields = ['id', 'patient_name', 'created_at']
+
+#Mihindi - dietician
+from .models import PatientNote
+
+class PatientNoteSerializer(serializers.ModelSerializer):
+    # Read-only display fields so the app can show names, not just IDs
+    dietitian_name = serializers.CharField(source='dietitian.username', read_only=True)
+    patient_name = serializers.CharField(source='patient.username', read_only=True)
+
+    class Meta:
+        model = PatientNote
+        fields = ['id', 'dietitian', 'dietitian_name', 'patient', 'patient_name',
+                  'note_text', 'created_at', 'updated_at']
+        # Dietitian is injected server-side from request.user — never trust the client
+        read_only_fields = ['dietitian', 'created_at', 'updated_at']
