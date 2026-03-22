@@ -134,6 +134,7 @@ def request_recipe(request):
     except socket.timeout:
         return Response({"error": "AI is taking a bit long. Please try again in a moment!"}, status=504)
     except Exception as e:
+        print(f"CRITICAL AI ERROR: {str(e)}")
         return Response({"error": "AI Chef is currently busy. Try again!"}, status=500)
 
 # 1. READ (GET)
