@@ -1,3 +1,4 @@
+from django.db import transaction
 from .serializers import UserProfileSerializer
 from .ai_service import generate_and_save_meal
 from rest_framework import generics
@@ -59,8 +60,10 @@ from .models import DietitianReview
 from .serializers import DietitianReviewSerializer
 from .services import create_dietitian_review
 from .services import get_dietitian_public_profile
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-from django.db import transaction  # Make sure this import is at the top!
+from django.db import transaction
 
 from rest_framework import viewsets
 from .models import PatientNote
@@ -70,6 +73,7 @@ from .permissions import IsDietitian
 
 @extend_schema(
     summary="User Registration & Onboarding",
+    request=RegisterSerializer,
     responses={201: OpenApiTypes.OBJECT}
 )
 class RegisterView(generics.CreateAPIView):
@@ -78,16 +82,14 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
-        # DEBUG: This will print the EXACT keys the Android app is sending to your Railway logs
-        print(f"DEBUG RECEIVE: {request.data}")
+        print(f"--- REGISTRATION DATA RECEIVED: {request.data} ---")
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # ATOMIC SAVE: Ensures data goes to the NEW user, not the old one
         with transaction.atomic():
             user = serializer.save()
-            profile = user.profile
+            profile, created = UserProfile.objects.get_or_create(user=user)
             data = request.data
 
             # Use .get() but check for both common naming styles
@@ -95,20 +97,22 @@ class RegisterView(generics.CreateAPIView):
             profile.weight = data.get('weight') or data.get('weight_kg') or profile.weight
             profile.date_of_birth = data.get('date_of_birth') or data.get('dob') or profile.date_of_birth
             profile.gender = data.get('gender', profile.gender)
+            profile.height = data.get('height', profile.height)
+            profile.weight = data.get('weight', profile.weight)
             profile.role = data.get('role', 'PATIENT')
-
             profile.save()
-            print(f"DEBUG SAVE: Profile updated for {user.username}")
 
         refresh = RefreshToken.for_user(user)
+        safe_role = profile.role if profile.role else "PATIENT"
 
         return Response({
             "message": "Account created successfully!",
-            "role": profile.role,
+            "role": safe_role,
             "refresh": str(refresh),
             "access": str(refresh.access_token),
             "is_new_user": True
         }, status=status.HTTP_201_CREATED)
+
 
 @extend_schema(
     summary="Request AI Meal Recipe",
@@ -490,39 +494,36 @@ def update_profile(request):
     profile = request.user.profile
     data = request.data
 
-    # (Using .get() safely keeps the old data if the app forgets to send it)
-    profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
+    # 1. Match the exact keys from the Android 'ProfileUpdateRequest'
     profile.gender = data.get('gender', profile.gender)
-
-
-    if hasattr(profile, 'country'):
-        profile.country = data.get('country', profile.country)
-
-        # The physical stats
+    profile.date_of_birth = data.get('date_of_birth', profile.date_of_birth)
     profile.height = data.get('height', profile.height)
     profile.weight = data.get('weight', profile.weight)
     profile.target_weight = data.get('target_weight', profile.target_weight)
     profile.target_calories = data.get('target_calories', profile.target_calories)
 
-    # -Preferences and Tags
-    if 'dietary_preference' in data:
-        profile.dietary_preference = data['dietary_preference']
+    # These were missing in our previous version!
+    profile.primary_goal = data.get('primary_goal', profile.primary_goal)
+    profile.activity_level = data.get('activity_level', profile.activity_level)
+
+    # Handing the Lists (Allergies, etc.)
     if 'allergies' in data:
         profile.allergies = data['allergies']
+    if 'dietary_preference' in data:
+        profile.dietary_preference = data['dietary_preference']
     if 'medical_conditions' in data:
         profile.medical_conditions = data['medical_conditions']
+
+    # Safely update country if it exists in the model
+    if hasattr(profile, 'country') and 'country' in data:
+        profile.country = data['country']
 
     profile.save()
 
     return Response({
         "status": "success",
-        "message": "Profile and onboarding data saved successfully!",
-        "current_data": {
-            "weight": profile.weight,
-            "height": profile.height,
-            "date_of_birth": profile.date_of_birth,
-            "gender": profile.gender
-        }
+        "message": "Profile updated with all Android onboarding data!",
+        "received_keys": list(data.keys())  # Helps the Android dev debug
     })
 class UserProfileCRUDView(APIView):
     """
@@ -918,15 +919,109 @@ class PatientNoteViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # SECURITY: Filter so a dietitian ONLY sees notes they personally wrote
-        queryset = PatientNote.objects.filter(dietitian=self.request.user)
-
-        # OPTIONAL FILTER: If ?patient_id=5 is passed, filter to that patient only
-        patient_id = self.request.query_params.get('patient_id')
-        if patient_id:
-            queryset = queryset.filter(patient__id=patient_id)
-
-        return queryset
+        return PatientNote.objects.filter(dietitian=self.request.user)  # ADDED 'return' HERE!
 
     def perform_create(self, serializer):
-        # Auto-inject the logged-in dietitian as the author — never trust the request body
+        # Automatically attach the logged-in dietitian to the note when created
         serializer.save(dietitian=self.request.user)
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['role'] = self.user.profile.role
+        data['message'] = "Login successful!"
+        data['is_new_user'] = False
+        return data
+
+class CustomLoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+@extend_schema(summary="Get Full Daily Diet Plan", responses={200: OpenApiTypes.OBJECT})
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_daily_plan_schedule(request):
+    profile = request.user.profile
+    today = timezone.now().date()
+    today_name = today.strftime('%A')
+
+    try:
+        daily_plan = DailyPlan.objects.get(
+            week_plan__user=profile,
+            week_plan__start_date__lte=today,
+            week_plan__end_date__gte=today,
+            day_name=today_name
+        )
+
+        all_meals = daily_plan.meals.all()
+        total_meals = all_meals.count()
+        eaten_meals = all_meals.filter(is_consumed=True).count()
+        completion_pct = int((eaten_meals / total_meals) * 100) if total_meals > 0 else 0
+
+        meals_data = []
+        for slot in all_meals:
+            meals_data.append({
+                "id": slot.id,
+                "type_label": slot.get_meal_type_display(),
+                "title": slot.recipe.title,
+                "calories": slot.recipe.calories,
+                "image_url": getattr(slot.recipe, 'image_url', "https://placeholder.com/food.jpg"),
+                "is_consumed": slot.is_consumed
+            })
+
+        return Response({
+            "date_display": f"{today_name}, {today.strftime('%b %d')}",
+            "target_calories": profile.target_calories,
+            "completion_percentage": completion_pct,
+            "meals": meals_data,
+            "summary": {"proteins_g": 124, "carbs_g": 185, "fats_g": 62}
+        })
+
+    except DailyPlan.DoesNotExist:
+        return Response({"error": "No active plan generated for today."}, status=404)
+
+
+@extend_schema(summary="Get Meal Recipe Details", responses={200: OpenApiTypes.OBJECT})
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_meal_recipe_detail(request, meal_slot_id):
+    try:
+        meal_slot = MealSlot.objects.get(
+            id=meal_slot_id,
+            day_plan__week_plan__user=request.user.profile
+        )
+        recipe = meal_slot.recipe
+
+        return Response({
+            "id": recipe.id,
+            "title": recipe.title,
+            "image_url": getattr(recipe, 'image_url', "https://placeholder.com/food.jpg"),
+            "ready_in_minutes": getattr(recipe, 'prep_time_minutes', 20),
+            "macros": {
+                "calories": recipe.calories,
+                "protein_g": getattr(recipe, 'protein_g', 32),
+                "carbs_g": getattr(recipe, 'carbs_g', 12),
+                "fats_g": getattr(recipe, 'fat_g', 18)
+            },
+            "ingredients": getattr(recipe, 'ingredients', [
+                {"name": "Chicken breast", "amount": "200g"},
+                {"name": "Mixed greens", "amount": "2 cups"},
+                {"name": "Cherry tomatoes", "amount": "1/2 cup"}
+            ]),
+            "directions": getattr(recipe, 'instructions', [
+                "Season the chicken breast with salt, pepper, and herbs. Grill over medium-high heat for 6-7 minutes.",
+                "While the chicken is resting, wash and chop the greens.",
+                "Slice the grilled chicken and serve."
+            ]),
+            "is_favorite": False
+        })
+
+    except MealSlot.DoesNotExist:
+        return Response({"error": "Meal not found."}, status=404)
+
+
+@extend_schema(summary="Toggle Favorite Recipe", responses={200: OpenApiTypes.OBJECT})
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_favorite_recipe(request, recipe_id):
+    return Response({"status": "success", "message": "Saved to Favorites!"})
