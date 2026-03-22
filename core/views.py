@@ -875,10 +875,6 @@ def get_system_notifications_view(request):
     return Response(notifications_data)
 
 
-
-
-
-
 # --- THE VIEWS ---
 @extend_schema(
     summary="Submit Dietitian Review",
@@ -1165,8 +1161,14 @@ class PatientNoteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsDietitian]
 
     def get_queryset(self):
-        # SECURITY: Filter so a dietitian ONLY sees notes they personally wrote
-        return PatientNote.objects.filter(dietitian=self.request.user)
+        queryset = PatientNote.objects.filter(dietitian=self.request.user)
+
+        # Changed from patient_id to patient__username
+        patient_username = self.request.query_params.get('patient_username')
+        if patient_username:
+            queryset = queryset.filter(patient__username=patient_username)
+
+        return queryset
 
     def perform_create(self, serializer):
         # Automatically attach the logged-in dietitian to the note when created
