@@ -72,6 +72,7 @@ from .permissions import IsDietitian
 from .models import PatientNote
 from .serializers import PatientNoteSerializer
 from .permissions import IsDietitian
+import re
 
 @extend_schema(
     summary="User Registration & Onboarding",
@@ -1092,38 +1093,56 @@ def get_daily_plan_schedule(request):
             "meals": meals_data
         }, status=200)
 
+
 @extend_schema(summary="Get Meal Recipe Details", responses={200: OpenApiTypes.OBJECT})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_meal_recipe_detail(request, meal_slot_id):
     try:
+        # 1. Find the meal slot belonging to this user
         meal_slot = MealSlot.objects.get(
             id=meal_slot_id,
             day_plan__week_plan__user=request.user.profile
         )
         recipe = meal_slot.recipe
 
+        # 2. Fetch the real ingredients we saved during AI generation
+        from .models import RecipeIngredient
+        recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
+
+        total_protein = 0
+        total_carbs = 0
+        total_fats = 0
+        ingredients_list = []
+
+        for ri in recipe_ingredients:
+            # Calculate macros based on quantity
+            factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
+            total_protein += float(ri.ingredient.protein) * factor
+            total_carbs += float(ri.ingredient.carbs) * factor
+            total_fats += float(ri.ingredient.fats) * factor
+
+            ingredients_list.append({
+                "name": ri.ingredient.name.title(),
+                "amount": f"{ri.quantity} {ri.unit}"
+            })
+
+        # 3. Split instructions by newlines so Kotlin gets a clean List<String>
+        directions_list = [step.strip() for step in re.split(r'\n|\d+\.', recipe.instructions) if step.strip()]
+
         return Response({
             "id": recipe.id,
             "title": recipe.title,
-            "image_url": getattr(recipe, 'image_url', "https://placeholder.com/food.jpg"),
-            "ready_in_minutes": getattr(recipe, 'prep_time_minutes', 20),
+            "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
+            "ready_in_minutes": recipe.prep_time_mins or 20,
             "macros": {
                 "calories": recipe.calories,
-                "protein_g": getattr(recipe, 'protein_g', 32),
-                "carbs_g": getattr(recipe, 'carbs_g', 12),
-                "fats_g": getattr(recipe, 'fat_g', 18)
+                "protein_g": int(total_protein),
+                "carbs_g": int(total_carbs),
+                "fats_g": int(total_fats)
             },
-            "ingredients": getattr(recipe, 'ingredients', [
-                {"name": "Chicken breast", "amount": "200g"},
-                {"name": "Mixed greens", "amount": "2 cups"},
-                {"name": "Cherry tomatoes", "amount": "1/2 cup"}
-            ]),
-            "directions": getattr(recipe, 'instructions', [
-                "Season the chicken breast with salt, pepper, and herbs. Grill over medium-high heat for 6-7 minutes.",
-                "While the chicken is resting, wash and chop the greens.",
-                "Slice the grilled chicken and serve."
-            ]),
+            "ingredients": ingredients_list,
+            "directions": directions_list,
             "is_favorite": False
         })
 

@@ -217,6 +217,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
             calories=ai_recipe.total_calories,
             prep_time_mins=ai_recipe.prep_time_mins,
             instructions=ai_recipe.instructions,
+            image_url=recipe_image,
             is_ai_generated=True
         )
 
