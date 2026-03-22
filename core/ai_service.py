@@ -86,51 +86,61 @@ def get_web_image(optimized_query):
 #getting the API key fron the .env file
 load_dotenv()
 
+
 # Fetch recipe data from OpenAI based on user constraints
 def generate_and_save_meal(user_profile, meal_type="lunch"):
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    try:
+        print(f"--- STARTING AI CHEF FOR: {meal_type} ---")
 
-    type_map = {
-        'breakfast': 'B', 'b': 'B',
-        'morning snack': 'S1', 's1': 'S1',
-        'lunch': 'L', 'l': 'L',
-        'mid day snack': 'S2', 's2': 'S2',
-        'dinner': 'D', 'd': 'D'
-    }
-    meal_code = type_map.get(meal_type.lower(), 'L')
+        # 1. Check for the API key safely
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            print("CRITICAL ERROR: OPENAI_API_KEY is missing from Railway environment variables!")
+            raise ValueError("API Key is missing from Railway")
 
-    #  Gather all the data from the Kotlin frontend
-    total_target = getattr(user_profile, 'target_calories', 2000)
+        client = OpenAI(api_key=api_key)
 
-    # Calculate portions based on if it's a snack or main meal
-    if meal_type.lower() in ['s1', 's2', 'morning snack', 'mid day snack']:
-        target_calories = round(total_target * 0.12)
-        snack_vibes = [
-            "a traditional herbal drink (like Kola Kenda, Belimal, or Ranawara) with a tiny sweet",
-            "a refreshing local fruit plate (like Papaya, Pineapple, or Mango) with chili/salt",
-            "a small portion of spiced boiled legumes (like Mung Beans, Kaupi, or Kadala) with fresh coconut",
-            "a small portion of traditional steamed roots (like Manioc or Sweet Potato) with a light sambol",
-            "a very light, healthy Sri Lankan traditional sweet (like Thala Guli or Aggala) paired with plain tea"
-        ]
-        chosen_vibe = random.choice(snack_vibes)
+        type_map = {
+            'breakfast': 'B', 'b': 'B',
+            'morning snack': 'S1', 's1': 'S1',
+            'lunch': 'L', 'l': 'L',
+            'mid day snack': 'S2', 's2': 'S2',
+            'dinner': 'D', 'd': 'D'
+        }
+        meal_code = type_map.get(meal_type.lower(), 'L')
 
-        context_header = f"""
-                *** CURRENT MEAL CONTEXT: This is a LIGHT SNACK ({meal_code}). ***
-                Style: Light, quick, and refreshing. 
-                CRITICAL DIRECTION: For this specific request, please focus on generating {chosen_vibe}.
-                Do NOT generate a massive main meal.
-                """
-    else:
-        target_calories = round(total_target * 0.28)
-        context_header = f"CURRENT MEAL CONTEXT: This is a BALANCED MAIN MEAL ({meal_type}). Style: Strictly follow the Protein + Complex Carb + Veg structure."
-    allergies = ", ".join(user_profile.allergies) if user_profile.allergies else "None"
-    avoid_foods = ", ".join(user_profile.foods_to_avoid) if user_profile.foods_to_avoid else "None"
-    medical = ", ".join(user_profile.medical_conditions) if user_profile.medical_conditions else "None"
-    goal = user_profile.primary_goal
-    activity = user_profile.activity_level
+        #  Gather all the data from the Kotlin frontend
+        total_target = getattr(user_profile, 'target_calories', 2000)
 
-    prompt = f"""
-    
+        # Calculate portions based on if it's a snack or main meal
+        if meal_type.lower() in ['s1', 's2', 'morning snack', 'mid day snack']:
+            target_calories = round(total_target * 0.12)
+            snack_vibes = [
+                "a traditional herbal drink (like Kola Kenda, Belimal, or Ranawara) with a tiny sweet",
+                "a refreshing local fruit plate (like Papaya, Pineapple, or Mango) with chili/salt",
+                "a small portion of spiced boiled legumes (like Mung Beans, Kaupi, or Kadala) with fresh coconut",
+                "a small portion of traditional steamed roots (like Manioc or Sweet Potato) with a light sambol",
+                "a very light, healthy Sri Lankan traditional sweet (like Thala Guli or Aggala) paired with plain tea"
+            ]
+            chosen_vibe = random.choice(snack_vibes)
+
+            context_header = f"""
+                    *** CURRENT MEAL CONTEXT: This is a LIGHT SNACK ({meal_code}). ***
+                    Style: Light, quick, and refreshing. 
+                    CRITICAL DIRECTION: For this specific request, please focus on generating {chosen_vibe}.
+                    Do NOT generate a massive main meal.
+                    """
+        else:
+            target_calories = round(total_target * 0.28)
+            context_header = f"CURRENT MEAL CONTEXT: This is a BALANCED MAIN MEAL ({meal_type}). Style: Strictly follow the Protein + Complex Carb + Veg structure."
+
+        allergies = ", ".join(user_profile.allergies) if user_profile.allergies else "None"
+        avoid_foods = ", ".join(user_profile.foods_to_avoid) if user_profile.foods_to_avoid else "None"
+        medical = ", ".join(user_profile.medical_conditions) if user_profile.medical_conditions else "None"
+        goal = user_profile.primary_goal
+        activity = user_profile.activity_level
+
+        prompt = f"""
         {context_header}
         You are an elite Sri Lankan clinical nutritionist...
 
@@ -143,10 +153,11 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         - Target Calories: {target_calories} kcal.
         - Mandatory Exclusions (Allergies): {allergies}.
         - User Dislikes (Avoid): {avoid_foods}.
+
         CULINARY DIRECTION:
         - If this is a SNACK (S1/S2): Strictly follow the "CURRENT MEAL CONTEXT" instructions at the top of this prompt.
         - If this is a MAIN MEAL (B/L/D): Follow the lean protein + complex carb + green vegetable rule.
-            
+
         CRITICAL HEALTH & CULINARY INSTRUCTIONS:
         - NO BORING MEALS: Absolutely no generic "boiled chicken and white rice" or "plain dhal". Elevate the dish.
         - HEALTH FIRST: Zero deep-frying. Strictly minimize thick coconut milk and oil.
@@ -159,15 +170,12 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
           Do NOT generate a meal that is missing a dedicated carb component.
         - CULINARY HARMONY & AUTHENTICITY: Use ingredients in their traditional, culturally authentic contexts. Pairings must make logical culinary sense.
         - COOKING TECHNIQUES: Heavily recommend healthy but intensely flavorful preparation methods like charring, roasting, traditional clay pot simmering with goraka, or grilling.
-        
+
         IMAGE SEARCH OPTIMIZATION (CRITICAL):
         - Stock photos for highly customized plate combinations do not exist. 
         - The 'image_search_query' field MUST be a broad, generic food category so a web scraper can easily find a high-quality stock photo.
         - DO NOT include specific protein names or local vegetable names in the search query.
-        - Example 1: "Spicy Grilled Chicken with Kurakkan Roti and Mallum" -> "Sri Lankan Roti Plate"
-        - Example 2: "Black Pork Curry with Red Rice" -> "Sri Lankan Rice Curry"
-        - Example 3: "Baked Fish with Sweet Potato Mash" -> "Healthy Sri Lankan plate"
-        
+
         NAMING CONVENTION & NO HALLUCINATION (CRITICAL):
         - DO NOT invent fake, fusion, or nonsense dish names. 
         - The recipe title MUST be either a highly accurate, literal descriptive name or a 100% authentic traditional Sri Lankan name.
@@ -185,7 +193,6 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         - Estimate realistic, current retail market prices in LKR specifically for Western Province suburbs.
         """
 
-    try:
         print("Sending request to OpenAI API...")
 
         # Force structured JSON response matching GeneratedRecipe
@@ -203,7 +210,6 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
 
         recipe_image = get_web_image(ai_recipe.image_search_query)
 
-
         # --- DATABASE INJECTION ---
         # 1. Save the Recipe
         new_recipe = Recipe.objects.create(
@@ -213,6 +219,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
             instructions=ai_recipe.instructions,
             is_ai_generated=True
         )
+
         # Grab the user's personal grocery cart (or create a blank one)
         user_cart, cart_created = GroceryCart.objects.get_or_create(user=user_profile.user)
 
@@ -237,9 +244,6 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         )
 
         # C. Map the Recipe to the MealSlot
-        # Map the incoming type to match the 5 database choices exactly
-
-
         meal_slot, slot_created = MealSlot.objects.get_or_create(
             day_plan=daily_plan,
             meal_type=meal_code,
@@ -252,7 +256,6 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
             meal_slot.is_substituted = False
             meal_slot.is_consumed = False
             meal_slot.save()
-
 
         # 2. Save Ingredients and Link Them
         for item in ai_recipe.ingredients:
@@ -295,17 +298,16 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
                 cart_item.save()
 
         print(f"Saved '{ai_recipe.title}' to DB!")
-        # Convert to dictionary and attach the image URL
-        #  ADD THE IMAGE TO THE DICTIONARY FOR KOTLIN
+
         final_recipe_data = ai_recipe.model_dump()
         final_recipe_data['image_url'] = recipe_image
         final_recipe_data['recipe_id'] = new_recipe.id
         return final_recipe_data
 
     except Exception as e:
-        print(f"AI API Failed: {e}")
+        # 👇 This will now catch BOTH API Key errors AND OpenAI generation errors!
+        print(f"CRITICAL AI ERROR CAUGHT: {str(e)}")
         return None
-
 
 def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
