@@ -933,6 +933,16 @@ def get_daily_plan_schedule(request):
     today = timezone.now().date()
     today_name = today.strftime('%A')
 
+
+    # The default slots the Android app wants to see
+    default_slots = [
+        {"type_code": "B", "type_label": "Breakfast"},
+        {"type_code": "S1", "type_label": "Morning Snack"},
+        {"type_code": "L", "type_label": "Lunch"},
+        {"type_code": "S2", "type_label": "Mid-Day Snack"},
+        {"type_code": "D", "type_label": "Dinner"}
+    ]
+
     try:
         daily_plan = DailyPlan.objects.get(
             week_plan__user=profile,
@@ -940,51 +950,68 @@ def get_daily_plan_schedule(request):
             week_plan__end_date__gte=today,
             day_name=today_name
         )
-
         all_meals = daily_plan.meals.all()
+        existing_meals = {m.meal_type: m for m in all_meals}
+
+        # Math for the top progress bar
         total_meals = all_meals.count()
         eaten_meals = all_meals.filter(is_consumed=True).count()
         completion_pct = int((eaten_meals / total_meals) * 100) if total_meals > 0 else 0
 
         meals_data = []
-        for slot in all_meals:
-            meals_data.append({
-                "id": slot.id,
-                "type_label": slot.get_meal_type_display(),
-                "title": slot.recipe.title,
-                "calories": slot.recipe.calories,
-                "image_url": getattr(slot.recipe, 'image_url', "https://placeholder.com/food.jpg"),
-                "is_consumed": slot.is_consumed
-            })
+        for slot in default_slots:
+            if slot["type_code"] in existing_meals:
+                m = existing_meals[slot["type_code"]]
+                meals_data.append({
+                    "id": m.id,
+                    "type_code": m.meal_type,
+                    "type_label": m.get_meal_type_display(),
+                    "title": m.recipe.title,
+                    "calories": m.recipe.calories,
+                    "image_url": getattr(m.recipe, 'image_url', "https://placeholder.com/food.jpg"),
+                    "is_consumed": m.is_consumed,
+                    "is_generated": True  # Tells Kotlin to open Recipe Detail
+                })
+            else:
+                meals_data.append({
+                    "id": None,
+                    "type_code": slot["type_code"],
+                    "type_label": slot["type_label"],
+                    "title": f"Tap to generate {slot['type_label']}",
+                    "calories": 0,
+                    "image_url": "https://placehold.co/600x400/eeeeee/999999?text=Tap+to+Add",
+                    "is_consumed": False,
+                    "is_generated": False  # Tells Kotlin to hit the AI Generator Endpoint
+                })
 
         return Response({
             "date_display": f"{today_name}, {today.strftime('%b %d')}",
             "target_calories": profile.target_calories,
             "completion_percentage": completion_pct,
             "meals": meals_data,
-            "summary": {"proteins_g": 124, "carbs_g": 185, "fats_g": 62}
         })
 
-
     except DailyPlan.DoesNotExist:
-
+        # If no plan exists AT ALL, send the empty skeleton so Android can render the UI!
+        meals_data = []
+        for slot in default_slots:
+            meals_data.append({
+                "id": None,
+                "type_code": slot["type_code"],
+                "type_label": slot["type_label"],
+                "title": f"Tap to generate {slot['type_label']}",
+                "calories": 0,
+                "image_url": "https://placehold.co/600x400/eeeeee/999999?text=Tap+to+Add",
+                "is_consumed": False,
+                "is_generated": False
+            })
 
         return Response({
-
             "date_display": f"{today_name}, {today.strftime('%b %d')}",
-
             "target_calories": profile.target_calories,
-
             "completion_percentage": 0,
-
-            "meals": [],  # Empty meals list!
-
-            "summary": {"proteins_g": 0, "carbs_g": 0, "fats_g": 0},
-
-            "has_plan": False
-
+            "meals": meals_data
         }, status=200)
-
 
 @extend_schema(summary="Get Meal Recipe Details", responses={200: OpenApiTypes.OBJECT})
 @api_view(['GET'])
