@@ -102,6 +102,11 @@ DATABASES = {
 }
 
 
+DATABASES['default']['TEST'] = {
+    'NAME': 'test_neondb_4',
+}
+
+
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
