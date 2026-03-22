@@ -453,6 +453,43 @@ def track_water(request):
         return Response({"error": "No active meal plan found for today. Generate a weekly plan first!"}, status=400)
 
 
+@extend_schema(
+    summary="Remove Water Intake (Undo)",
+    description="Removes a specific amount of water if the user accidentally double-tapped.",
+    request=inline_serializer(name='RemoveWaterReq', fields={'amount_ml': serializers.IntegerField(default=250)}),
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def remove_water(request):
+    profile = request.user.profile
+    today = timezone.now().date()
+    today_name = today.strftime('%A')
+
+    # Defaults to a 250ml glass, just like the add function
+    amount_ml = request.data.get('amount_ml', 250)
+
+    try:
+        daily_plan = DailyPlan.objects.get(
+            week_plan__user=profile,
+            week_plan_start_date_lte=today,
+            week_plan_end_date_gte=today,
+            day_name=today_name
+        )
+
+        # Math max() ensures they can't have negative water!
+        daily_plan.water_consumed_ml = max(0, daily_plan.water_consumed_ml - int(amount_ml))
+        daily_plan.save()
+
+        return Response({
+            "status": "success",
+            "message": f"Removed {amount_ml}ml of water.",
+            "total_water_ml": daily_plan.water_consumed_ml
+        })
+
+    except DailyPlan.DoesNotExist:
+        return Response({"error": "No active meal plan found for today."}, status=400)
+    
 # meal tracker
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
