@@ -1196,3 +1196,51 @@ class ReminderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+# --- MEMBER 4B: DIETICIAN MEDIA CRUD ---
+@extend_schema(tags=['Dietician Management'])
+class DietitianMediaView(APIView):
+    permission_classes = [IsAuthenticated, IsDietitian]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        summary="Get Current Professional Photo",
+        responses={200: inline_serializer(
+            name='MediaResponse',
+            fields={'profile_picture_url': serializers.URLField()}
+        )}
+    )
+    def get(self, request):
+        pic_url = request.user.profile.profile_picture.url if request.user.profile.profile_picture else None
+        return Response({"profile_picture_url": pic_url})
+
+    @extend_schema(
+        summary="Upload Professional Photo",
+        description="Upload a new profile picture to Cloudinary.",
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {"image": {"type": "string", "format": "binary"}}
+            }
+        },
+        responses={201: OpenApiTypes.OBJECT}
+    )
+    def post(self, request):
+        if 'image' not in request.FILES:
+            return Response({"error": "No image provided"}, status=400)
+        
+        upload_data = cloudinary.uploader.upload(request.FILES['image'], folder="dietitian_pro_pics")
+        profile = request.user.profile
+        profile.profile_picture = upload_data['secure_url']
+        profile.save()
+        return Response({"message": "Photo uploaded!", "url": profile.profile_picture}, status=201)
+
+    @extend_schema(
+        summary="Remove Professional Photo",
+        responses={204: None}
+    )
+    def delete(self, request):
+        profile = request.user.profile
+        profile.profile_picture = None
+        profile.save()
+        return Response({"message": "Photo removed."}, status=204)
