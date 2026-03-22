@@ -1,0 +1,57 @@
+name: Django CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Run Automated Tests
+    runs-on: ubuntu-latest
+
+    # 1. Spin up a temporary isolated Database for testing
+    # We specifically use pgvector image because our AI embedding models require it!
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    # 2. Grab the latest code from the repository
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 3. Set up the Python environment (matching our local 3.12 setup)
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+
+    # 4. Install all the project requirements
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # 5. Run the automated test suite!
+    - name: Run Django Tests
+      env:
+        # Override the Neon DB so GitHub uses its own temporary database
+        DATABASE_URL: postgres://testuser:testpassword@localhost:5432/test_db
+        # Provide a dummy secret key just for the testing environment
+        SECRET_KEY: 'github-actions-dummy-secret-key-for-testing'
+      run: |
+        python manage.py test core
