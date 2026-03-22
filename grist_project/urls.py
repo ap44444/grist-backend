@@ -86,7 +86,7 @@ urlpatterns = [
                     path('api/track/meal/<int:meal_slot_id>/', core_views.track_meal, name='track_meal'),
 
                     # Dietitian Management
-                     path('api/dietitian/manage/identity/', core_views.DieticianIdentityView.as_view(), name='dietician_identity_crud'),
-                     path('api/dietitian/manage/media/', core_views.DietitianMediaView.as_view(), name='dietitian_media_crud'),
+                     #path('api/dietitian/manage/identity/', core_views.DieticianIdentityView.as_view(), name='dietician_identity_crud'),
+                     #path('api/dietitian/manage/media/', core_views.DietitianMediaView.as_view(), name='dietitian_media_crud'),
 
               ] + router.urls
