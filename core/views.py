@@ -76,6 +76,14 @@ import re
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from drf_spectacular.utils import extend_schema
+
+from .permissions import IsDietitian
+from .serializers import DieticianProfileSerializer
 
 
 
@@ -1244,3 +1252,46 @@ class DietitianMediaView(APIView):
         profile.profile_picture = None
         profile.save()
         return Response({"message": "Photo removed."}, status=204)
+
+    @extend_schema(tags=['Dietician Management'])
+    class DieticianIdentityView(APIView):
+
+        permission_classes = [IsAuthenticated, IsDietitian]
+
+        @extend_schema(
+            summary="Get Dietician Professional Info",
+            responses={200: DieticianProfileSerializer}
+        )
+        def get(self, request):
+            profile = request.user.dietician_profile
+            serializer = DieticianProfileSerializer(profile)
+            return Response(serializer.data)
+
+        @extend_schema(
+            summary="Update Professional Bio/License",
+            request=DieticianProfileSerializer,
+            responses={200: DieticianProfileSerializer}
+        )
+        def patch(self, request):
+            profile = request.user.dietician_profile
+            serializer = DieticianProfileSerializer(profile, data=request.data, partial=True)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        @extend_schema(
+            summary="Clear Professional Bio",
+            responses={204: None}
+        )
+        def delete(self, request):
+            profile = request.user.dietician_profile
+            profile.bio = ""
+            profile.save()
+
+            return Response(
+                {"message": "Bio cleared."},
+                status=status.HTTP_204_NO_CONTENT
+            )
