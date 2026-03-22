@@ -69,7 +69,9 @@ from rest_framework import viewsets
 from .models import PatientNote
 from .serializers import PatientNoteSerializer
 from .permissions import IsDietitian
-
+from .models import PatientNote
+from .serializers import PatientNoteSerializer
+from .permissions import IsDietitian
 
 @extend_schema(
     summary="User Registration & Onboarding",
@@ -915,3 +917,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+class PatientNoteViewSet(viewsets.ModelViewSet):
+    """
+    Full CRUD for Dietitian Patient Notes.
+    - Only authenticated Dietitians can access this.
+    - A dietitian can only see/edit their OWN notes (not other dietitians').
+    """
+    serializer_class = PatientNoteSerializer
+    permission_classes = [IsAuthenticated, IsDietitian]
+
+    def get_queryset(self):
+        # SECURITY: Filter so a dietitian ONLY sees notes they personally wrote
+        return PatientNote.objects.filter(dietitian=self.request.user)
+
+    def perform_create(self, serializer):
+        # Automatically attach the logged-in dietitian to the note when created
+        serializer.save(dietitian=self.request.user)
