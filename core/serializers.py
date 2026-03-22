@@ -101,3 +101,13 @@ class ReminderSerializer(serializers.ModelSerializer):
         model = Reminder
         fields = ['id', 'user', 'title', 'time_to_trigger', 'is_active']
         read_only_fields = ['id', 'user']
+
+# PERSON A: DIETITIAN PROFESSIONAL IDENTITY SERIALIZER
+
+from .models import DieticianProfile
+
+class DieticianProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DieticianProfile
+        fields = ['license_number', 'bio', 'is_verified']
+        read_only_fields = ['is_verified']
