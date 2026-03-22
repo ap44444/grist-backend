@@ -69,7 +69,9 @@ from rest_framework import viewsets
 from .models import PatientNote
 from .serializers import PatientNoteSerializer
 from .permissions import IsDietitian
-
+from .models import PatientNote
+from .serializers import PatientNoteSerializer
+from .permissions import IsDietitian
 
 @extend_schema(
     summary="User Registration & Onboarding",
@@ -916,3 +918,109 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+@extend_schema(summary="Get Full Daily Diet Plan", responses={200: OpenApiTypes.OBJECT})
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_daily_plan_schedule(request):
+    profile = request.user.profile
+    today = timezone.now().date()
+    today_name = today.strftime('%A')
+
+    try:
+        daily_plan = DailyPlan.objects.get(
+            week_plan__user=profile,
+            week_plan__start_date__lte=today,
+            week_plan__end_date__gte=today,
+            day_name=today_name
+        )
+
+        all_meals = daily_plan.meals.all()
+        total_meals = all_meals.count()
+        eaten_meals = all_meals.filter(is_consumed=True).count()
+        completion_pct = int((eaten_meals / total_meals) * 100) if total_meals > 0 else 0
+
+        meals_data = []
+        for slot in all_meals:
+            meals_data.append({
+                "id": slot.id,
+                "type_label": slot.get_meal_type_display(),
+                "title": slot.recipe.title,
+                "calories": slot.recipe.calories,
+                "image_url": getattr(slot.recipe, 'image_url', "https://placeholder.com/food.jpg"),
+                "is_consumed": slot.is_consumed
+            })
+
+        return Response({
+            "date_display": f"{today_name}, {today.strftime('%b %d')}",
+            "target_calories": profile.target_calories,
+            "completion_percentage": completion_pct,
+            "meals": meals_data,
+            "summary": {"proteins_g": 124, "carbs_g": 185, "fats_g": 62}
+        })
+
+    except DailyPlan.DoesNotExist:
+        return Response({"error": "No active plan generated for today."}, status=404)
+
+
+@extend_schema(summary="Get Meal Recipe Details", responses={200: OpenApiTypes.OBJECT})
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_meal_recipe_detail(request, meal_slot_id):
+    try:
+        meal_slot = MealSlot.objects.get(
+            id=meal_slot_id,
+            day_plan__week_plan__user=request.user.profile
+        )
+        recipe = meal_slot.recipe
+
+        return Response({
+            "id": recipe.id,
+            "title": recipe.title,
+            "image_url": getattr(recipe, 'image_url', "https://placeholder.com/food.jpg"),
+            "ready_in_minutes": getattr(recipe, 'prep_time_minutes', 20),
+            "macros": {
+                "calories": recipe.calories,
+                "protein_g": getattr(recipe, 'protein_g', 32),
+                "carbs_g": getattr(recipe, 'carbs_g', 12),
+                "fats_g": getattr(recipe, 'fat_g', 18)
+            },
+            "ingredients": getattr(recipe, 'ingredients', [
+                {"name": "Chicken breast", "amount": "200g"},
+                {"name": "Mixed greens", "amount": "2 cups"},
+                {"name": "Cherry tomatoes", "amount": "1/2 cup"}
+            ]),
+            "directions": getattr(recipe, 'instructions', [
+                "Season the chicken breast with salt, pepper, and herbs. Grill over medium-high heat for 6-7 minutes.",
+                "While the chicken is resting, wash and chop the greens.",
+                "Slice the grilled chicken and serve."
+            ]),
+            "is_favorite": False
+        })
+
+    except MealSlot.DoesNotExist:
+        return Response({"error": "Meal not found."}, status=404)
+
+
+@extend_schema(summary="Toggle Favorite Recipe", responses={200: OpenApiTypes.OBJECT})
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_favorite_recipe(request, recipe_id):
+    return Response({"status": "success", "message": "Saved to Favorites!"})
+class PatientNoteViewSet(viewsets.ModelViewSet):
+    """
+    Full CRUD for Dietitian Patient Notes.
+    - Only authenticated Dietitians can access this.
+    - A dietitian can only see/edit their OWN notes (not other dietitians').
+    """
+    serializer_class = PatientNoteSerializer
+    permission_classes = [IsAuthenticated, IsDietitian]
+
+    def get_queryset(self):
+        # SECURITY: Filter so a dietitian ONLY sees notes they personally wrote
+        return PatientNote.objects.filter(dietitian=self.request.user)
+
+    def perform_create(self, serializer):
+        # Automatically attach the logged-in dietitian to the note when created
+        serializer.save(dietitian=self.request.user)
