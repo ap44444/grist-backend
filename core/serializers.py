@@ -91,3 +91,13 @@ class PatientNoteSerializer(serializers.ModelSerializer):
         fields = ['id', 'dietitian', 'dietitian_name', 'patient', 'patient_name',
                   'patient_username', 'note_text', 'created_at', 'updated_at']
         read_only_fields = ['dietitian', 'patient', 'created_at', 'updated_at']
+
+
+# --- MEMBER 5: CUSTOM USER REMINDERS ---
+from .models import Reminder
+
+class ReminderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reminder
+        fields = ['id', 'user', 'title', 'time_to_trigger', 'is_active']
+        read_only_fields = ['id', 'user']

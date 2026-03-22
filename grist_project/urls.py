@@ -6,11 +6,12 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 
-from core.views import AppointmentViewSet, PatientNoteViewSet
+from core.views import AppointmentViewSet, PatientNoteViewSet, ReminderViewSet
 
 router = DefaultRouter()
 router.register(r'appointments', AppointmentViewSet, basename='appointment')
 router.register(r'dietitian/notes', PatientNoteViewSet, basename='patient-note')
+router.register(r'reminders', ReminderViewSet, basename='reminder')
 
 urlpatterns = [
                   path("admin/", admin.site.urls),

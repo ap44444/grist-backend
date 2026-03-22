@@ -292,4 +292,15 @@ class SystemNotification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.alert_type} for {self.dietitian.username}"
+        return f"{self.alert_type} for {self.dietitian.username} ({self.created_at.date()})"
+
+
+# --- MEMBER 5: CUSTOM USER REMINDERS ---
+class Reminder(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='reminders')
+    title = models.CharField(max_length=200)
+    time_to_trigger = models.TimeField()
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.title} at {self.time_to_trigger} for {self.user.username}"

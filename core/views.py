@@ -1173,3 +1173,21 @@ class PatientNoteViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Automatically attach the logged-in dietitian to the note when created
         serializer.save(dietitian=self.request.user)
+
+
+# --- MEMBER 5: CUSTOM USER REMINDERS ---
+from .models import Reminder
+from .serializers import ReminderSerializer
+
+class ReminderViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for User Reminders.
+    """
+    serializer_class = ReminderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Reminder.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
