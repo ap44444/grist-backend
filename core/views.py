@@ -1253,45 +1253,45 @@ class DietitianMediaView(APIView):
         profile.save()
         return Response({"message": "Photo removed."}, status=204)
 
-    @extend_schema(tags=['Dietician Management'])
-    class DieticianIdentityView(APIView):
+@extend_schema(tags=['Dietician Management'])
+class DieticianIdentityView(APIView):
 
-        permission_classes = [IsAuthenticated, IsDietitian]
+    permission_classes = [IsAuthenticated, IsDietitian]
 
-        @extend_schema(
-            summary="Get Dietician Professional Info",
-            responses={200: DieticianProfileSerializer}
-        )
-        def get(self, request):
-            profile = request.user.dietician_profile
-            serializer = DieticianProfileSerializer(profile)
+    @extend_schema(
+        summary="Get Dietician Professional Info",
+        responses={200: DieticianProfileSerializer}
+    )
+    def get(self, request):
+        profile = request.user.dietician_profile
+        serializer = DieticianProfileSerializer(profile)
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Update Professional Bio/License",
+        request=DieticianProfileSerializer,
+        responses={200: DieticianProfileSerializer}
+    )
+    def patch(self, request):
+        profile = request.user.dietician_profile
+        serializer = DieticianProfileSerializer(profile, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
             return Response(serializer.data)
 
-        @extend_schema(
-            summary="Update Professional Bio/License",
-            request=DieticianProfileSerializer,
-            responses={200: DieticianProfileSerializer}
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="Clear Professional Bio",
+        responses={204: None}
+    )
+    def delete(self, request):
+        profile = request.user.dietician_profile
+        profile.bio = ""
+        profile.save()
+
+        return Response(
+            {"message": "Bio cleared."},
+            status=status.HTTP_204_NO_CONTENT
         )
-        def patch(self, request):
-            profile = request.user.dietician_profile
-            serializer = DieticianProfileSerializer(profile, data=request.data, partial=True)
-
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        @extend_schema(
-            summary="Clear Professional Bio",
-            responses={204: None}
-        )
-        def delete(self, request):
-            profile = request.user.dietician_profile
-            profile.bio = ""
-            profile.save()
-
-            return Response(
-                {"message": "Bio cleared."},
-                status=status.HTTP_204_NO_CONTENT
-            )
