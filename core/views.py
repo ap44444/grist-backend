@@ -73,6 +73,11 @@ from .models import PatientNote
 from .serializers import PatientNoteSerializer
 from .permissions import IsDietitian
 import re
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+from drf_spectacular.utils import extend_schema, inline_serializer
+
+
 
 @extend_schema(
     summary="User Registration & Onboarding",
