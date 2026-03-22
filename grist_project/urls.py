@@ -89,9 +89,6 @@ urlpatterns = [
                     path('api/dietitian/manage/media/', core_views.DietitianMediaView.as_view(), name='dietitian_media_crud'),
 
                 # Dietitian professional identity CRUD operations (get, update, delete)
-                    path(
-                    'api/dietitian/manage/identity/',
-                        core_views.DieticianIdentityView.as_view(),
-                        name='dietitian_identity_crud'),
+                    path('api/dietitian/manage/identity/', core_views.DieticianIdentityView.as_view(), name='dietitian_identity_crud'),
 
               ] + router.urls
