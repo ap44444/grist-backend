@@ -77,7 +77,8 @@ urlpatterns = [
                   path('api/dietitians/<int:dietitian_id>/reviews/', core_views.get_dietitian_reviews,
                        name='get_reviews'),
                   path('api/patient/reviews/submit/', core_views.submit_review_view, name='submit_review_view'),
-
+                path('api/patient/reviews/<int:review_id>/update/', core_views.update_review_view, name='update_review'), # UPDATE
+                    path('api/patient/reviews/<int:review_id>/delete/', core_views.delete_review_view, name='delete_review'), # DELETE
                   # Profile picture
                   path('api/profile/upload-picture/', core_views.upload_profile_picture, name='upload_picture'),
 

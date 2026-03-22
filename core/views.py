@@ -875,6 +875,48 @@ def submit_review_view(request):
     summary="Get Dietitian Reviews",
     responses={200: OpenApiTypes.OBJECT}
 )
+@extend_schema(
+    summary="Update an existing Review",
+    description="Allows a patient to edit their rating or comment.",
+    request=DietitianReviewSerializer,
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_review_view(request, review_id):
+    # SECURITY: We filter by patient=request.user so they can ONLY edit their own reviews!
+    review = get_object_or_404(DietitianReview, id=review_id, patient=request.user)
+
+    # partial=True means they can send just the 'comment' or just the 'rating'
+    serializer = DietitianReviewSerializer(review, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "status": "success",
+            "message": "Review updated!",
+            "review": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(
+    summary="Delete a Review",
+    description="Permanently deletes a patient's review.",
+    responses={204: OpenApiTypes.NONE}
+)
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_review_view(request, review_id):
+    # SECURITY: Ensure they can only delete their own review
+    review = get_object_or_404(DietitianReview, id=review_id, patient=request.user)
+    review.delete()
+
+    return Response({
+        "status": "success",
+        "message": "Review deleted successfully."
+    }, status=status.HTTP_204_NO_CONTENT)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_dietitian_reviews(request, dietitian_id):
