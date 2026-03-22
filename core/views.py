@@ -121,6 +121,7 @@ class RegisterView(generics.CreateAPIView):
     ],
     responses={200: OpenApiTypes.OBJECT}
 )
+@extend_schema(summary="Request AI Meal Recipe", responses={200: OpenApiTypes.OBJECT})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def request_recipe(request):
@@ -128,16 +129,20 @@ def request_recipe(request):
     meal_type = request.query_params.get('type', 'lunch')
 
     try:
-        # We give the AI a window to answer.
-        # If it takes too long, the 504 error tells the Kotlin app to show a "Retry" button.
         recipe_data = generate_and_save_meal(user_profile, meal_type=meal_type)
+
+        #  If ai_service returns None, safely tell the Android app it failed!
+        if not recipe_data:
+            return Response({"error": "AI Chef failed. Check server logs!"}, status=500)
+
         return Response(recipe_data, status=200)
 
     except socket.timeout:
         return Response({"error": "AI is taking a bit long. Please try again in a moment!"}, status=504)
     except Exception as e:
-        print(f"CRITICAL AI ERROR: {str(e)}")
-        return Response({"error": "AI Chef is currently busy. Try again!"}, status=500)
+        print(f"CRITICAL VIEW ERROR: {str(e)}")
+        return Response({"error": "Server error. Try again!"}, status=500)
+
 
 # 1. READ (GET)
 @api_view(['GET'])
@@ -960,8 +965,25 @@ def get_daily_plan_schedule(request):
             "summary": {"proteins_g": 124, "carbs_g": 185, "fats_g": 62}
         })
 
+
     except DailyPlan.DoesNotExist:
-        return Response({"error": "No active plan generated for today."}, status=404)
+
+
+        return Response({
+
+            "date_display": f"{today_name}, {today.strftime('%b %d')}",
+
+            "target_calories": profile.target_calories,
+
+            "completion_percentage": 0,
+
+            "meals": [],  # Empty meals list!
+
+            "summary": {"proteins_g": 0, "carbs_g": 0, "fats_g": 0},
+
+            "has_plan": False
+
+        }, status=200)
 
 
 @extend_schema(summary="Get Meal Recipe Details", responses={200: OpenApiTypes.OBJECT})
