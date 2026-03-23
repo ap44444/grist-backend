@@ -420,9 +420,20 @@ def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
 
         return {
             "status": "success",
-            "new_recipe": new_recipe.title,
+            "meal_slot": {
+                "id": meal_slot.id,
+                "type_code": meal_slot.meal_type,
+                "type_label": meal_slot.get_meal_type_display(),
+                "title": new_recipe.title,
+                "calories": new_recipe.calories,
+                "image_url": new_recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
+                "is_consumed": meal_slot.is_consumed,
+                "is_generated": True,
+                "is_substituted": True
+            },
             "swap_details": ai_data.model_dump()
         }
+
 
     except MealSlot.DoesNotExist:
         return {"status": "error", "message": "Meal slot not found or does not belong to this user."}

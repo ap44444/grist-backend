@@ -232,9 +232,70 @@ def request_substitution(request, meal_slot_id):
     result = substitute_ingredient_in_meal(request.user, meal_slot_id, old_ingredient)
 
     if result.get("status") == "success":
-        return Response(result, status=200)
+        # Also return the full updated daily plan so frontend can refresh in one call
+        profile = request.user.profile
+        today = timezone.now().date()
+        today_name = today.strftime('%A')
+
+        default_slots = [
+            {"type_code": "B", "type_label": "Breakfast"},
+            {"type_code": "S1", "type_label": "Morning Snack"},
+            {"type_code": "L", "type_label": "Lunch"},
+            {"type_code": "S2", "type_label": "Mid-Day Snack"},
+            {"type_code": "D", "type_label": "Dinner"}
+        ]
+
+        try:
+            daily_plan = DailyPlan.objects.get(
+                week_plan__user=profile,
+                week_plan__start_date__lte=today,
+                week_plan__end_date__gte=today,
+                day_name=today_name
+            )
+            all_meals = daily_plan.meals.all()
+            existing_meals = {m.meal_type: m for m in all_meals}
+
+            meals_data = []
+            for slot in default_slots:
+                if slot["type_code"] in existing_meals:
+                    m = existing_meals[slot["type_code"]]
+                    meals_data.append({
+                        "id": m.id,
+                        "type_code": m.meal_type,
+                        "type_label": m.get_meal_type_display(),
+                        "title": m.recipe.title,
+                        "calories": m.recipe.calories,
+                        "image_url": getattr(m.recipe, 'image_url', "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"),
+                        "is_consumed": m.is_consumed,
+                        "is_generated": True,
+                        "is_substituted": m.is_substituted
+                    })
+                else:
+                    meals_data.append({
+                        "id": None,
+                        "type_code": slot["type_code"],
+                        "type_label": slot["type_label"],
+                        "title": f"Tap to generate {slot['type_label']}",
+                        "calories": 0,
+                        "image_url": "https://placehold.co/600x400/eeeeee/999999?text=Tap+to+Add",
+                        "is_consumed": False,
+                        "is_generated": False,
+                        "is_substituted": False
+                    })
+
+        except DailyPlan.DoesNotExist:
+            meals_data = []
+
+        return Response({
+            "status": "success",
+            "meal_slot": result["meal_slot"],
+            "swap_details": result["swap_details"],
+            "updated_meals": meals_data  # Full plan so frontend can refresh everything at once
+        }, status=200)
+
     else:
         return Response(result, status=400)
+
 # Loging out a user
 @extend_schema(
     summary="User Logout",
