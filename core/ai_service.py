@@ -315,7 +315,10 @@ def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
 
     try:
         # 1. Find the exact meal slot the user is trying to change
-        meal_slot = MealSlot.objects.get(id=meal_slot_id, day_plan__week_plan__user__user=user)
+        meal_slot = MealSlot.objects.get(
+            id=meal_slot_id,
+            day_plan__week_plan__user__user=user
+        )
         original_recipe = meal_slot.recipe
 
         # 2. Ask the AI for a localized swap
@@ -332,7 +335,6 @@ def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
 
         print(f"Requesting AI substitution for {old_ingredient_name}...")
 
-        # Force structured JSON response matching SubstitutedRecipe
         completion = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -344,35 +346,76 @@ def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
 
         ai_data = completion.choices[0].message.parsed
 
-        # 3. Database Magic: Clone and Swap
+        # 3. Clone the recipe with the fix: copy image_url from original
         new_recipe = Recipe.objects.create(
             title=ai_data.new_recipe_title,
             calories=original_recipe.calories,
             instructions=ai_data.updated_instructions,
             prep_time_mins=original_recipe.prep_time_mins,
+            image_url=original_recipe.image_url,  # FIX: carry over the image
             is_ai_generated=True
         )
 
-        # Map the new recipe to the user's meal slot
+        # 4. FIX: Copy all ingredients from the original recipe to the new one,
+        #    EXCEPT the one being substituted
+        old_name_lower = old_ingredient_name.lower().strip()
+        original_ingredients = RecipeIngredient.objects.filter(recipe=original_recipe)
+
+        for ri in original_ingredients:
+            if old_name_lower not in ri.ingredient.name.lower():
+                # Keep this ingredient as-is
+                RecipeIngredient.objects.create(
+                    recipe=new_recipe,
+                    ingredient=ri.ingredient,
+                    quantity=ri.quantity,
+                    unit=ri.unit
+                )
+            else:
+                # Create or get the new substitute ingredient
+                new_ingredient, _ = Ingredient.objects.get_or_create(
+                    name=ai_data.new_ingredient_name.lower().strip(),
+                    defaults={
+                        'calories': ri.ingredient.calories,
+                        'protein': ri.ingredient.protein,
+                        'carbs': ri.ingredient.carbs,
+                        'fats': ri.ingredient.fats,
+                        'price_lkr': ri.ingredient.price_lkr * 0.6,  # Assume cheaper
+                        'is_local': True
+                    }
+                )
+                RecipeIngredient.objects.create(
+                    recipe=new_recipe,
+                    ingredient=new_ingredient,
+                    quantity=ri.quantity,
+                    unit=ri.unit
+                )
+
+        # 5. Map the new recipe to the user's meal slot
         meal_slot.recipe = new_recipe
         meal_slot.is_substituted = True
         meal_slot.save()
 
-        # Handle the Grocery Cart Swap
-        cart, _ = GroceryCart.objects.get_or_create(user=user)
+        # 6. Handle the Grocery Cart Swap
+        user_cart, _ = GroceryCart.objects.get_or_create(user=user)
 
         # Remove the expensive item from their cart
         GroceryCartItem.objects.filter(
-            cart=cart,
-            ingredient__name__icontains=old_ingredient_name.lower()
+            cart=user_cart,
+            ingredient__name__icontains=old_name_lower
         ).delete()
 
-        # Add the cheap local item to their cart
+        # Add the cheap local substitute to their cart
+        new_ingredient_obj = Ingredient.objects.filter(
+            name__icontains=ai_data.new_ingredient_name.lower().strip()
+        ).first()
+
         GroceryCartItem.objects.create(
-            cart=cart,
-            custom_name=ai_data.new_ingredient_name,
+            cart=user_cart,
+            ingredient=new_ingredient_obj,  # Link properly if found
+            custom_name=ai_data.new_ingredient_name if not new_ingredient_obj else None,
             quantity=1,
-            unit="portion"
+            unit="portion",
+            is_purchased=False
         )
 
         return {
@@ -382,6 +425,7 @@ def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
         }
 
     except MealSlot.DoesNotExist:
-        return {"status": "error", "message": "Meal slot not found."}
+        return {"status": "error", "message": "Meal slot not found or does not belong to this user."}
     except Exception as e:
+        print(f"SUBSTITUTION ERROR: {str(e)}")
         return {"status": "error", "message": str(e)}
