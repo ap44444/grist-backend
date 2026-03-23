@@ -96,7 +96,8 @@ WSGI_APPLICATION = "grist_project.wsgi.application"
 DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv('DATABASE_URL'),
-        conn_max_age=600,
+        conn_max_age=0,  # CHANGED: 0 forces a fresh connection every time
+        conn_health_checks=True,
         ssl_require=os.getenv('GITHUB_ACTIONS') != 'true'
     )
 }
