@@ -229,73 +229,56 @@ def request_substitution(request, meal_slot_id):
     if not old_ingredient:
         return Response({"error": "Please provide 'ingredient_to_replace' in the JSON body."}, status=400)
 
+    # 1. Run the AI swap (Updates the database)
     result = substitute_ingredient_in_meal(request.user, meal_slot_id, old_ingredient)
 
     if result.get("status") == "success":
-        # Also return the full updated daily plan so frontend can refresh in one call
-        profile = request.user.profile
-        today = timezone.now().date()
-        today_name = today.strftime('%A')
-
-        default_slots = [
-            {"type_code": "B", "type_label": "Breakfast"},
-            {"type_code": "S1", "type_label": "Morning Snack"},
-            {"type_code": "L", "type_label": "Lunch"},
-            {"type_code": "S2", "type_label": "Mid-Day Snack"},
-            {"type_code": "D", "type_label": "Dinner"}
-        ]
-
         try:
-            daily_plan = DailyPlan.objects.get(
-                week_plan__user=profile,
-                week_plan__start_date__lte=today,
-                week_plan__end_date__gte=today,
-                day_name=today_name
-            )
-            all_meals = daily_plan.meals.all()
-            existing_meals = {m.meal_type: m for m in all_meals}
+            # 2. Fetch the newly saved recipe
+            meal_slot = MealSlot.objects.get(id=meal_slot_id, day_plan__week_plan__user__user=request.user)
+            recipe = meal_slot.recipe
+            recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
 
-            meals_data = []
-            for slot in default_slots:
-                if slot["type_code"] in existing_meals:
-                    m = existing_meals[slot["type_code"]]
-                    meals_data.append({
-                        "id": m.id,
-                        "type_code": m.meal_type,
-                        "type_label": m.get_meal_type_display(),
-                        "title": m.recipe.title,
-                        "calories": m.recipe.calories,
-                        "image_url": getattr(m.recipe, 'image_url', "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg"),
-                        "is_consumed": m.is_consumed,
-                        "is_generated": True,
-                        "is_substituted": m.is_substituted
-                    })
-                else:
-                    meals_data.append({
-                        "id": None,
-                        "type_code": slot["type_code"],
-                        "type_label": slot["type_label"],
-                        "title": f"Tap to generate {slot['type_label']}",
-                        "calories": 0,
-                        "image_url": "https://placehold.co/600x400/eeeeee/999999?text=Tap+to+Add",
-                        "is_consumed": False,
-                        "is_generated": False,
-                        "is_substituted": False
-                    })
+            # 3. Calculate Macros for the specific ingredients
+            total_protein = 0
+            total_carbs = 0
+            total_fats = 0
+            ingredients_list = []
 
-        except DailyPlan.DoesNotExist:
-            meals_data = []
+            for ri in recipe_ingredients:
+                factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
+                total_protein += float(ri.ingredient.protein) * factor
+                total_carbs += float(ri.ingredient.carbs) * factor
+                total_fats += float(ri.ingredient.fats) * factor
 
-        return Response({
-            "status": "success",
-            "meal_slot": result["meal_slot"],
-            "swap_details": result["swap_details"],
-            "updated_meals": meals_data  # Full plan so frontend can refresh everything at once
-        }, status=200)
+                ingredients_list.append({
+                    "name": ri.ingredient.name.title(),
+                    "amount": f"{ri.quantity} {ri.unit}"
+                })
 
+            directions_list = [step.strip() for step in re.split(r'\n|\d+\.', recipe.instructions) if step.strip()]
+
+            # 4. Return the EXACT shape the Android `RecipeDetailResponse` expects!
+            return Response({
+                "id": recipe.id,
+                "title": recipe.title,
+                "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
+                "ready_in_minutes": recipe.prep_time_mins or 20,
+                "macros": {
+                    "calories": recipe.calories,
+                    "protein_g": int(total_protein),
+                    "carbs_g": int(total_carbs),
+                    "fats_g": int(total_fats)
+                },
+                "ingredients": ingredients_list,
+                "directions": directions_list,
+                "is_favorite": False
+            }, status=200)
+
+        except Exception as e:
+            return Response({"error": f"Substitution succeeded but data retrieval failed: {str(e)}"}, status=500)
     else:
         return Response(result, status=400)
-
 # Loging out a user
 @extend_schema(
     summary="User Logout",
