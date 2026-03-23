@@ -84,6 +84,8 @@ from drf_spectacular.utils import extend_schema
 
 from .permissions import IsDietitian
 from .serializers import DieticianProfileSerializer
+import re
+from .models import MealSlot, RecipeIngredient
 
 
 
@@ -214,20 +216,68 @@ def delete_cart_item(request, item_id):
     request=inline_serializer(name='SubRequest', fields={'ingredient_to_replace': serializers.CharField()}),
     responses={200: OpenApiTypes.OBJECT}
 )
+@extend_schema(
+    summary="Substitute an Ingredient",
+    request=inline_serializer(name='SubRequest', fields={'ingredient_to_replace': serializers.CharField()}),
+    responses={200: OpenApiTypes.OBJECT}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def request_substitution(request, meal_slot_id):
-    # The frontend will send the name of the ingredient they want to remove
     old_ingredient = request.data.get('ingredient_to_replace')
 
     if not old_ingredient:
         return Response({"error": "Please provide 'ingredient_to_replace' in the JSON body."}, status=400)
 
+    # 1. Ask AI to do the substitution
     result = substitute_ingredient_in_meal(request.user, meal_slot_id, old_ingredient)
 
     if result.get("status") == "success":
-        return Response(result, status=200)
+        # 2. SUCCESS! Now we MUST fetch the newly updated recipe and send the FULL data back.
+        try:
+            meal_slot = MealSlot.objects.get(id=meal_slot_id, day_plan__week_plan__user=request.user.profile)
+            recipe = meal_slot.recipe
+            recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
+
+            total_protein = 0
+            total_carbs = 0
+            total_fats = 0
+            ingredients_list = []
+
+            for ri in recipe_ingredients:
+                factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
+                total_protein += float(ri.ingredient.protein) * factor
+                total_carbs += float(ri.ingredient.carbs) * factor
+                total_fats += float(ri.ingredient.fats) * factor
+
+                ingredients_list.append({
+                    "name": ri.ingredient.name.title(),
+                    "amount": f"{ri.quantity} {ri.unit}"
+                })
+
+            directions_list = [step.strip() for step in re.split(r'\n|\d+\.', recipe.instructions) if step.strip()]
+
+            # Return the exact format the Android App expects!
+            return Response({
+                "id": recipe.id,
+                "title": recipe.title,
+                "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
+                "ready_in_minutes": recipe.prep_time_mins or 20,
+                "macros": {
+                    "calories": recipe.calories,
+                    "protein_g": int(total_protein),
+                    "carbs_g": int(total_carbs),
+                    "fats_g": int(total_fats)
+                },
+                "ingredients": ingredients_list,
+                "directions": directions_list,
+                "is_favorite": False
+            }, status=200)
+
+        except Exception as e:
+            return Response({"error": f"Failed to load new recipe: {str(e)}"}, status=500)
     else:
+        # AI failed (e.g., ingredient not found)
         return Response(result, status=400)
 
 # Loging out a user
