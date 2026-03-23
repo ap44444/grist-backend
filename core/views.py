@@ -265,11 +265,11 @@ def request_substitution(request, meal_slot_id):
                 "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
                 "ready_in_minutes": recipe.prep_time_mins or 20,
                 "macros": {
-                    "calories": recipe.calories,
-                    "protein_g": int(total_protein),
-                    "carbs_g": int(total_carbs),
-                    "fats_g": int(total_fats)
-                },
+                "calories": recipe.calories,
+                "protein_g": sum(int(float(ri.ingredient.protein) * (ri.quantity/100)) for ri in recipe_ingredients),
+                "carbs_g": sum(int(float(ri.ingredient.carbs) * (ri.quantity/100)) for ri in recipe_ingredients),
+                "fats_g": sum(int(float(ri.ingredient.fats) * (ri.quantity/100)) for ri in recipe_ingredients)
+            },
                 "ingredients": ingredients_list,
                 "directions": directions_list,
                 "is_favorite": False

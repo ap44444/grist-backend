@@ -379,7 +379,7 @@ def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
                         'protein': ri.ingredient.protein,
                         'carbs': ri.ingredient.carbs,
                         'fats': ri.ingredient.fats,
-                        'price_lkr': ri.ingredient.price_lkr * 0.6,  # Assume cheaper
+                        'price_lkr': float(ri.ingredient.price_lkr) * 0.6,
                         'is_local': True
                     }
                 )
