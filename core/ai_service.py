@@ -306,7 +306,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         return final_recipe_data
 
     except Exception as e:
-        # 👇 This will now catch BOTH API Key errors AND OpenAI generation errors!
+
         print(f"CRITICAL AI ERROR CAUGHT: {str(e)}")
         return None
 
