@@ -171,6 +171,7 @@ class UserProfile(models.Model):
     USER_ROLES = [('PATIENT', 'Patient'), ('DIETITIAN', 'Dietitian')]
     role = models.CharField(max_length=15, choices=USER_ROLES, default='PATIENT')
     current_streak = models.IntegerField(default=0, help_text="Consecutive days logging in/eating meals")
+    last_active_date = models.DateField(null=True, blank=True, help_text="The last date the streak was updated")
     # Demographics
     GENDER_CHOICES = [('Male', 'Male'), ('Female', 'Female')]
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)

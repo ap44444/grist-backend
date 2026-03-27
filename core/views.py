@@ -599,6 +599,8 @@ def track_meal(request, meal_slot_id):
         meal_slot.is_consumed = True
         meal_slot.save()
 
+        update_user_streak(request.user.profile)
+
         return Response({
             "status": "success",
             "message": f"Successfully logged {meal_slot.get_meal_type_display()} as eaten!"

@@ -296,3 +296,27 @@ def get_dietitian_public_profile(dietitian_id):
         # We grab the 5 most recent reviews for that preview list at the bottom
         "recent_reviews": reviews[:5]
     }
+
+
+def update_user_streak(profile):
+    """
+    Checks the last active date and updates the streak accordingly.
+    Call this whenever a user completes a 'streak-worthy' action (like logging a meal).
+    """
+    today = timezone.now().date()
+
+    # If they already got their streak point for today, do nothing!
+    if profile.last_active_date == today:
+        return
+
+    # If their last active date was exactly yesterday, the streak continues!
+    elif profile.last_active_date == today - timedelta(days=1):
+        profile.current_streak += 1
+
+    # If they missed a day (or it's their very first time), reset to 1
+    else:
+        profile.current_streak = 1
+
+    # Save today as their new last active date
+    profile.last_active_date = today
+    profile.save()
