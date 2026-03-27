@@ -210,7 +210,7 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
 
         recipe_image = get_web_image(ai_recipe.image_search_query)
 
-        # --- DATABASE INJECTION ---
+        #  DATABASE INJECTION
         # 1. Save the Recipe
         new_recipe = Recipe.objects.create(
             title=ai_recipe.title,
@@ -321,17 +321,25 @@ def substitute_ingredient_in_meal(user, meal_slot_id, old_ingredient_name):
         )
         original_recipe = meal_slot.recipe
 
-        # 2. Ask the AI for a localized swap
+        # 2. Ask the AI for a localized swap using strict constraints
         prompt = f"""
-        You are an expert Sri Lankan dietician.
-        A user is making the recipe: "{original_recipe.title}"
-        They need to substitute this ingredient because it is too expensive or hard to find in Sri Lanka: "{old_ingredient_name}"
+                You are an elite Sri Lankan clinical nutritionist.
+                A user is modifying the following recipe: "{original_recipe.title}"
 
-        Provide a locally available Sri Lankan alternative that:
-        1. Is significantly cheaper or easier to find.
-        2. Closely matches the calorie and macronutrient profile of the original.
-        3. Fits the flavor profile of the dish.
-        """
+                ORIGINAL INSTRUCTIONS TO USE AS A TEMPLATE:
+                "{original_recipe.instructions}"
+
+                TASK:
+                The user wants to remove "{old_ingredient_name}" because it is too expensive or hard to find.
+
+                CRITICAL RULES FOR THE SUBSTITUTION:
+                1. NO LAZY SWAPS: Do NOT suggest a different cut or variation of the exact same ingredient (e.g., do NOT swap "chicken breast" for "chicken legs", or "beef" for "minced beef"). It must be a completely different ingredient.
+                2. THINK LOCAL & AFFORDABLE: Heavily favor cheap, culturally authentic Sri Lankan staples. 
+                   - Good Protein Swaps: Soya meat (TVP), Mushrooms, Jackfruit (Polos), Chickpeas (Kadala), Dhal, Paneer, or cheap local fish (like Salaya/Canned fish).
+                   - Good Carb/Veg Swaps: Manioc, Bathala (Sweet Potato), local greens.
+                3. CULINARY HARMONY: The new ingredient must logically fit the flavor profile of a Sri Lankan dish and serve the same macro purpose (e.g., swap a protein for a protein).
+                4. REWRITE INSTRUCTIONS: Rewrite the Original Instructions provided above. Keep them the EXACT same length and level of detail. Intelligently replace "{old_ingredient_name}" with your new ingredient and adjust specific prep steps if needed (e.g., "soak the soya meat in hot water" instead of "wash the chicken").
+                """
 
         print(f"Requesting AI substitution for {old_ingredient_name}...")
 
