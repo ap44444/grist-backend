@@ -12,6 +12,7 @@ from core.models import DietitianReview, CustomUser
 from rest_framework.exceptions import ValidationError
 from core.models import CustomUser, DietitianReview
 from django.db.models import Avg
+from .models import RecipeIngredient
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -26,6 +27,10 @@ def calculate_weekly_progress(profile, timeframe='this_week'):
     consistency_grid = [False, False, False, False, False, False, False]
     total_calories = 0
     days_tracked = 0
+
+    total_protein = 0.0
+    total_carbs = 0.0
+    total_fats = 0.0
 
     try:
         weekly_plan = WeeklyPlan.objects.get(user=profile.user, start_date__lte=today, end_date__gte=today)
@@ -44,17 +49,37 @@ def calculate_weekly_progress(profile, timeframe='this_week'):
                 if cals_today > 0 and abs(cals_today - profile.target_calories) <= 150:
                     consistency_grid[i] = True
 
+                consumed_meals = daily_plan.meals.filter(is_consumed=True)
+                for meal in consumed_meals:
+                    for ri in RecipeIngredient.objects.filter(recipe=meal.recipe):
+                        factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
+                        total_protein += float(ri.ingredient.protein) * factor
+                        total_carbs += float(ri.ingredient.carbs) * factor
+                        total_fats += float(ri.ingredient.fats) * factor
+
     except WeeklyPlan.DoesNotExist:
         pass
 
     avg_intake = round(total_calories / days_tracked) if days_tracked > 0 else 0
     consistency_percentage = round((sum(consistency_grid) / 7.0) * 100)
 
+    total_macros = total_protein + total_carbs + total_fats
+    if total_macros > 0:
+        p_pct = int((total_protein / total_macros) * 100)
+        c_pct = int((total_carbs / total_macros) * 100)
+        f_pct = int((total_fats / total_macros) * 100)
+    else:
+        p_pct = c_pct = f_pct = 0
+
     return {
         "timeframe": timeframe,
         "avg_intake_kcal": avg_intake,
         "calorie_trends_array": daily_calories,
-        "macronutrient_breakdown": {"protein_percent": 30, "fats_percent": 25, "carbs_percent": 45},
+        "macronutrient_breakdown": {
+            "protein_percent": p_pct,
+            "fats_percent": f_pct,
+            "carbs_percent": c_pct
+        },
         "consistency": {"percentage": consistency_percentage, "daily_grid": consistency_grid}
     }
 def get_daily_nutritional_summary(daily_plan):

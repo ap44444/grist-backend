@@ -4,7 +4,7 @@ from .ai_service import generate_and_save_meal
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from .serializers import RegisterSerializer
-from core.models import CustomUser, DailyPlan
+from core.models import CustomUser, DailyPlan, WeeklyPlan
 from django.shortcuts import get_object_or_404
 from .models import GroceryCart, GroceryCartItem
 from .serializers import GroceryCartSerializer, GroceryCartItemSerializer
@@ -325,8 +325,21 @@ def get_dashboard_data(request):
     today_name = today.strftime('%A')
 
     # The Weekly Balance array for the Bar Chart (Mon-Sun)
-    #dummy data for the front end to build the UI
-    weekly_balance = [50, 80, 100, 40, 0, 0, 0]
+    from datetime import timedelta
+    start_of_week = today - timedelta(days=today.weekday())  # Gets Monday
+    weekly_balance = [0, 0, 0, 0, 0, 0, 0]
+
+    try:
+        week_plan = WeeklyPlan.objects.get(user=user_profile, start_date__lte=today, end_date__gte=today)
+        for i in range(7):
+            target_date = start_of_week + timedelta(days=i)
+            day_plan = week_plan.days.filter(day_name=target_date.strftime('%A')).first()
+            if day_plan:
+                # Sum calories of ONLY the meals they actually ate
+                cals = sum(meal.recipe.calories for meal in day_plan.meals.filter(is_consumed=True))
+                weekly_balance[i] = cals
+    except WeeklyPlan.DoesNotExist:
+        pass
 
     try:
         # Look up the active plan using the date ranges AND the day name
