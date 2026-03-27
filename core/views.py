@@ -161,6 +161,7 @@ def request_recipe(request):
 
 
 # 1. READ (GET)
+@extend_schema(summary="Get Grocery Cart", responses={200: GroceryCartSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_grocery_cart(request):
@@ -171,6 +172,7 @@ def get_grocery_cart(request):
 
 
 # 2. CREATE (POST)
+@extend_schema(summary="Add Cart Item", request=GroceryCartItemSerializer, responses={201: GroceryCartItemSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_cart_item(request):
@@ -202,6 +204,7 @@ def update_cart_item(request, item_id):
 
 
 # 4. DELETE (DELETE)
+@extend_schema(summary="Delete Cart Item", responses={204: OpenApiTypes.NONE})
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_cart_item(request, item_id):
@@ -567,6 +570,7 @@ def remove_water(request):
         return Response({"error": "No active meal plan found for today."}, status=400)
     
 # meal tracker
+@extend_schema(summary="Track Meal", responses={200: OpenApiTypes.OBJECT})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def track_meal(request, meal_slot_id):
@@ -649,6 +653,7 @@ class UserProfileCRUDView(APIView):
     for the logged-in user's profile.
     """
     permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileSerializer
 
     def get(self, request):
         # READ
@@ -677,7 +682,7 @@ class UserProfileCRUDView(APIView):
             {"message": "User account and profile permanently deleted."},
             status=status.HTTP_204_NO_CONTENT
         )
-
+@extend_schema(summary="Health Check", responses={200: OpenApiTypes.OBJECT})
 @api_view(['GET'])
 @permission_classes([AllowAny]) # Anyone can check if the server is up!
 def health_check(request):
@@ -896,6 +901,7 @@ def get_dietitian_appointments(request):
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Appointment.objects.none()
 
     def get_queryset(self):
         # SECURITY: If it's a dietitian, show their schedule. If a patient, show their bookings.
@@ -1234,6 +1240,7 @@ class PatientNoteViewSet(viewsets.ModelViewSet):
     """
     serializer_class = PatientNoteSerializer
     permission_classes = [IsAuthenticated, IsDietitian]
+    queryset = PatientNote.objects.none()
 
     def get_queryset(self):
         queryset = PatientNote.objects.filter(dietitian=self.request.user)
@@ -1260,6 +1267,7 @@ class ReminderViewSet(viewsets.ModelViewSet):
     """
     serializer_class = ReminderSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Reminder.objects.none()
 
     def get_queryset(self):
         return Reminder.objects.filter(user=self.request.user)
