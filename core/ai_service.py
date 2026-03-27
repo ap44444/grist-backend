@@ -26,7 +26,7 @@ class GeneratedIngredient(BaseModel):
 
 class GeneratedRecipe(BaseModel):
     title: str = Field(description="Name of the dish")
-    image_search_query: str = Field(description="A highly generic 3-word food category to guarantee finding a stock photo (e.g., 'Sri Lankan Rice Curry', 'Sri Lankan Roti Plate'). DO NOT use specific ingredient names.")
+    image_search_query: str = Field(description="A 2-4 word search query for a stock photo. Combine the main ingredient with 'Curry', 'Plate', or 'Dish' (e.g., 'Red Rice Curry Plate', 'Sweet Potato Dish').")
     total_calories: int = Field(description="Total calories for the entire prepared meal")
     prep_time_mins: int
     instructions: str = Field(description="Step by step cooking instructions")
@@ -172,9 +172,13 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
         - COOKING TECHNIQUES: Heavily recommend healthy but intensely flavorful preparation methods like charring, roasting, traditional clay pot simmering with goraka, or grilling.
 
         IMAGE SEARCH OPTIMIZATION (CRITICAL):
-        - Stock photos for highly customized plate combinations do not exist. 
-        - The 'image_search_query' field MUST be a broad, generic food category so a web scraper can easily find a high-quality stock photo.
-        - DO NOT include specific protein names or local vegetable names in the search query.
+        - Stock photos for highly customized plate combinations do not exist.
+        - The 'image_search_query' MUST look like a complete, cooked meal, not a raw ingredient.
+        - Always pair the main ingredient with words like "Curry", "Plate", or "Dish".
+        - GOOD QUERIES: "Red Rice Curry Plate", "Boiled Sweet Potato Dish", "Jackfruit Curry".
+        - BAD QUERIES (Too specific): "Red rice with spicy lunu miris and chicken".
+        - BAD QUERIES (Too raw): "Red rice", "Sweet potato" (these will return images of raw, uncooked food).
+        
 
         NAMING CONVENTION & NO HALLUCINATION (CRITICAL):
         - DO NOT invent fake, fusion, or nonsense dish names. 
@@ -300,10 +304,45 @@ def generate_and_save_meal(user_profile, meal_type="lunch"):
 
         print(f"Saved '{ai_recipe.title}' to DB!")
 
-        final_recipe_data = ai_recipe.model_dump()
-        final_recipe_data['image_url'] = recipe_image
-        final_recipe_data['recipe_id'] = new_recipe.id
-        return final_recipe_data
+        import re
+        total_protein = 0
+        total_carbs = 0
+        total_fats = 0
+        ingredients_list = []
+
+        # Pull the newly saved ingredients to calculate real macros
+        recipe_ingredients = RecipeIngredient.objects.filter(recipe=new_recipe)
+
+        for ri in recipe_ingredients:
+            factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
+            total_protein += float(ri.ingredient.protein) * factor
+            total_carbs += float(ri.ingredient.carbs) * factor
+            total_fats += float(ri.ingredient.fats) * factor
+
+            # This combines quantity and unit into "amount" for Maheen!
+            ingredients_list.append({
+                "name": ri.ingredient.name.title(),
+                "amount": f"{ri.quantity} {ri.unit}"
+            })
+
+        directions_list = [step.strip() for step in re.split(r'\n|\d+\.', new_recipe.instructions) if step.strip()]
+
+        # Return the exact JSON shape the Kotlin app expects
+        return {
+            "id": new_recipe.id,
+            "title": new_recipe.title,
+            "image_url": recipe_image,
+            "ready_in_minutes": new_recipe.prep_time_mins or 20,
+            "macros": {
+                "calories": new_recipe.calories,
+                "protein_g": int(total_protein),
+                "carbs_g": int(total_carbs),
+                "fats_g": int(total_fats)
+            },
+            "ingredients": ingredients_list,
+            "directions": directions_list,
+            "is_favorite": False
+        }
 
     except Exception as e:
 
