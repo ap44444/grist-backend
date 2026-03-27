@@ -61,6 +61,7 @@ urlpatterns = [
                   # Grocery cart
                   path('api/cart/', core_views.get_grocery_cart, name='get_cart'),
                   path('api/cart/add/', core_views.add_cart_item, name='add_cart_item'),
+                  path('api/cart/clear/', core_views.clear_grocery_cart, name='clear_cart'),
                   path('api/cart/item/<int:item_id>/update/', core_views.update_cart_item, name='update_item'),
                   path('api/cart/item/<int:item_id>/delete/', core_views.delete_cart_item, name='delete_item'),
 

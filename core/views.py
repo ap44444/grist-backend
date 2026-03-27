@@ -224,6 +224,21 @@ def delete_cart_item(request, item_id):
     request=inline_serializer(name='SubRequest', fields={'ingredient_to_replace': serializers.CharField()}),
     responses={200: OpenApiTypes.OBJECT}
 )
+# 5. CLEAR ENTIRE CART (DELETE)
+@extend_schema(summary="Clear Entire Grocery Cart", responses={204: OpenApiTypes.NONE})
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def clear_grocery_cart(request):
+    """Removes all items from the user's grocery cart."""
+    # Find the user's cart
+    cart = get_object_or_404(GroceryCart, user=request.user)
+
+    # Delete all items attached to this cart
+    cart.items.all().delete()
+
+    return Response({"message": "Entire cart cleared successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def request_substitution(request, meal_slot_id):
