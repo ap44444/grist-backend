@@ -1531,3 +1531,28 @@ def get_pending_appointments(request):
 
     except ImportError:
         return Response([])
+
+
+@extend_schema(
+    summary="Dietitian Cancel Appointment",
+    description="Allows a dietitian to reject a pending booking request.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def cancel_appointment(request, pk):
+    try:
+        # SECURITY: Ensure the dietitian can only cancel their OWN appointments
+        appointment = Appointment.objects.get(id=pk, dietitian=request.user)
+
+        # Switch the status to CANCELLED
+        appointment.status = 'CANCELLED'
+        appointment.save()
+
+        return Response({
+            "status": "success",
+            "message": "Appointment request has been declined."
+        })
+
+    except Appointment.DoesNotExist:
+        return Response({"error": "Appointment not found."}, status=404)
