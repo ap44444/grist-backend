@@ -807,6 +807,12 @@ def get_dietitian_dashboard(request):
     current_time = now.time()
 
     dietitian_user = request.user
+    if not hasattr(dietitian_user, 'dietician_profile'):
+        return Response(
+            {
+                "error": "This account is a Dietitian, but no DieticianProfile exists for it yet. Please create one in the Django Admin."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     dietitian_profile = request.user.dietician_profile
 
     # 2. "Pending Plans": Count pending ConsultationRequests

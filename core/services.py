@@ -116,7 +116,7 @@ def get_dietitian_profile_stats(user):
 
     # 2. Calculate average rating and total reviews
     reviews = DietitianReview.objects.filter(dietitian=user)
-    avg_rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0.0
+    avg_rating = reviews.aggregate(Avg('dietitian_rating'))['dietitian_rating__avg'] or 0.0
     review_count = reviews.count()
 
     # 3. Find "Active Clients" (Patients who have confirmed appointments)
