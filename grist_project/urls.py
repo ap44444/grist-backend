@@ -91,5 +91,7 @@ urlpatterns = [
 
                 # Dietitian professional identity CRUD operations (get, update, delete)
                     path('api/dietitian/manage/identity/', core_views.DieticianIdentityView.as_view(), name='dietitian_identity_crud'),
+                #booking
+                    path('api/dietitians/list/', core_views.get_all_dietitians, name='dietitian-list'),
 
               ] + router.urls

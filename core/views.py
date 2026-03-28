@@ -1101,6 +1101,47 @@ class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+@extend_schema(
+    summary="Get List of All Dietitians",
+    description="Returns a list of all dietitians with their bio, picture, and average rating.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_dietitians(request):
+    #  Find every user in the database whose role is set to 'DIETITIAN'
+    dietitians = CustomUser.objects.filter(profile__role='DIETITIAN')
+
+    dietitian_list = []
+
+    for d in dietitians:
+        #  Safely grab their bio (just in case they haven't set one up yet)
+        bio = ""
+        if hasattr(d, 'dietician_profile'):
+            bio = d.dietician_profile.bio
+
+        #  Safely grab their Cloudinary picture URL
+        pic_url = None
+        if hasattr(d, 'profile') and d.profile.profile_picture:
+            pic_url = d.profile.profile_picture.url
+
+        #  Calculate their average rating from patient reviews
+        reviews = DietitianReview.objects.filter(dietitian=d)
+        avg_rating = reviews.aggregate(Avg('dietitian_rating'))['dietitian_rating__avg'] or 0.0
+
+        #  Package it up for the Android app
+        dietitian_list.append({
+            "id": d.id,
+            "name": d.get_full_name() or d.username,
+            "profile_picture_url": pic_url,
+            "bio": bio,
+            "average_rating": round(avg_rating, 1),
+            "review_count": reviews.count()
+        })
+
+    return Response(dietitian_list)
+
+
 @extend_schema(summary="Get Full Daily Diet Plan", responses={200: OpenApiTypes.OBJECT})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
