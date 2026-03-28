@@ -435,6 +435,8 @@ def get_profile_data(request):
         # 4. Use the bmi category function to label it (Underweight, Normal, etc.)
         category = bmi_category(raw_bmi)
 
+    pic_url = profile.profile_picture.url if profile.profile_picture else None
+
     return Response({
         "user_id": request.user.id,
         "full_name": request.user.get_full_name() or request.user.username,
