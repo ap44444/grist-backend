@@ -94,6 +94,6 @@ urlpatterns = [
                 #booking
                     path('api/dietitians/list/', core_views.get_all_dietitians, name='dietitian-list'),
 
-                ('api/', include(router.urls)),
+                path('api/', include(router.urls)),
 
               ]
