@@ -57,6 +57,7 @@ from .services import get_active_clients_list
 from .services import get_dietitian_notifications
 from .services import get_dietitian_profile_stats
 from .services import get_dietitian_public_profile
+from .services import get_dietitian_dashboard_stats
 
 
 @extend_schema(
@@ -800,11 +801,7 @@ def get_dietitian_dashboard(request):
 
     dietitian_profile, created = DieticianProfile.objects.get_or_create(user=dietitian_user)
 
-    # 2. "Pending Plans": Count pending ConsultationRequests
-    pending_plans_count = ConsultationRequest.objects.filter(
-        dietitian=dietitian_profile,
-        status='pending'
-    ).count()
+
 
     # 3. "Messages" Badge: Count messages sent by patients
     # (Excludes messages sent BY the dietitian so they only see inbound messages)
@@ -822,7 +819,15 @@ def get_dietitian_dashboard(request):
         todays_clients_count = Appointment.objects.filter(
             dietitian=dietitian_user,
             date=today,
-            status='CONFIRMED'
+            status__in=['PENDING', 'CONFIRMED']
+        ).count()
+
+        # NEW: Calculate how many are left today based on current time
+        pending_plans_count = Appointment.objects.filter(
+            dietitian=dietitian_user,
+            date=today,
+            time__gte=current_time,
+            status__in=['PENDING', 'CONFIRMED']
         ).count()
 
         # Find the single closest appointment today that hasn't happened yet
@@ -830,12 +835,12 @@ def get_dietitian_dashboard(request):
             dietitian=dietitian_user,
             date=today,
             time__gte=current_time,
-            status='CONFIRMED'
+            status__in=['PENDING', 'CONFIRMED']
         ).order_by('time').first()
 
         if next_appointment:
             next_patient_data = {
-                "patient_name": next_appointment.patient.get_full_name() or next_appointment.patient.username,
+                "patient_name": next_appointment.patient.username,  # Using username for viva!
                 "time": next_appointment.time.strftime("%I:%M %p"),
                 "appointment_type": getattr(next_appointment, 'appointment_type', 'Consultation'),
                 "meeting_link": getattr(next_appointment, 'meeting_link', None)
@@ -846,10 +851,12 @@ def get_dietitian_dashboard(request):
     except ImportError:
         # Fallback just in case Team Member 2 hasn't merged their code yet
         todays_clients_count = 0
+        pending_plans_count = 0  # Fixed: Added this so the app doesn't crash!
         next_patient_data = None
 
-    # 5. Package it all into a clean JSON response for the Android app
+        # 5. Package it all into a clean JSON response for the Android app
     return Response({
+        "dietitian_name": dietitian_user.username,
         "todays_clients_count": todays_clients_count,
         "pending_plans_count": pending_plans_count,
         "unread_messages_count": unread_messages_count,
