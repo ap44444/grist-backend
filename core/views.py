@@ -800,13 +800,14 @@ def get_dietitian_dashboard(request):
 
     dietitian_profile, created = DieticianProfile.objects.get_or_create(user=dietitian_user)
 
-
-
     # 3. "Messages" Badge: Count messages sent by patients
-    # (Excludes messages sent BY the dietitian so they only see inbound messages)
-    unread_messages_count = ChatMessage.objects.filter(
-        request__dietitian=dietitian_profile
-    ).exclude(sender=dietitian_user).count()
+    try:
+        unread_messages_count = ChatMessage.objects.filter(
+            request__dietitian=dietitian_profile
+        ).exclude(sender=dietitian_user).count()
+    except Exception as e:
+        print(f"Message Count Error: {e}")
+        unread_messages_count = 0  # Bulletproof fallback!
 
     # 4. "Today's Clients" & "Next Patient"
     # We use a try/except block here. This ensures YOUR code works right now,
@@ -906,6 +907,11 @@ def get_dietitian_appointments(request):
                 "status": app.status,      # <- ADDED: Frontend needs this!
                 "meeting_link": getattr(app, 'meeting_link', "")
             }
+
+        return Response({
+            "today": [format_app(app) for app in todays_apps],
+            "future": [format_app(app) for app in future_apps]
+        })
 
 
     except Exception as e:
