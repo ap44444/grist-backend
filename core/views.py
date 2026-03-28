@@ -38,6 +38,7 @@ from .models import Appointment
 from .models import ConsultationRequest, ChatMessage
 from .models import DailyPlan
 from .models import DietitianReview
+from .models import DieticianProfile
 from .models import GroceryCart, GroceryCartItem
 from .models import MealSlot, RecipeIngredient
 from .models import PatientNote
@@ -796,13 +797,8 @@ def get_dietitian_dashboard(request):
     current_time = now.time()
 
     dietitian_user = request.user
-    if not hasattr(dietitian_user, 'dietician_profile'):
-        return Response(
-            {
-                "error": "This account is a Dietitian, but no DieticianProfile exists for it yet. Please create one in the Django Admin."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    dietitian_profile = request.user.dietician_profile
+
+    dietitian_profile, created = DieticianProfile.objects.get_or_create(user=dietitian_user)
 
     # 2. "Pending Plans": Count pending ConsultationRequests
     pending_plans_count = ConsultationRequest.objects.filter(
@@ -1405,7 +1401,7 @@ class DieticianIdentityView(APIView):
         responses={200: DieticianProfileSerializer}
     )
     def get(self, request):
-        profile = request.user.dietician_profile
+        profile, _ = DieticianProfile.objects.get_or_create(user=request.user)
         serializer = DieticianProfileSerializer(profile)
         return Response(serializer.data)
 
@@ -1415,7 +1411,7 @@ class DieticianIdentityView(APIView):
         responses={200: DieticianProfileSerializer}
     )
     def patch(self, request):
-        profile = request.user.dietician_profile
+        profile, _ = DieticianProfile.objects.get_or_create(user=request.user)
         serializer = DieticianProfileSerializer(profile, data=request.data, partial=True)
 
         if serializer.is_valid():
@@ -1429,7 +1425,7 @@ class DieticianIdentityView(APIView):
         responses={204: None}
     )
     def delete(self, request):
-        profile = request.user.dietician_profile
+        profile, _ = DieticianProfile.objects.get_or_create(user=request.user)
         profile.bio = ""
         profile.save()
 
