@@ -1497,3 +1497,37 @@ def complete_appointment(request, pk):
 
     except Appointment.DoesNotExist:
         return Response({"error": "Appointment not found."}, status=404)
+
+
+@extend_schema(
+    summary="Get Pending Appointments for Dietitian",
+    description="Returns a list of all unconfirmed booking requests.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def get_pending_appointments(request):
+    try:
+        from .models import Appointment
+
+        # Fetch only the appointments that need the doctor's approval
+        pending_apps = Appointment.objects.filter(
+            dietitian=request.user,
+            status='PENDING'
+        ).order_by('date', 'time')
+
+        # Format it perfectly for Maheen's UI cards
+        formatted_data = []
+        for app in pending_apps:
+            formatted_data.append({
+                "id": app.id,
+                "patient_name": app.patient.username,  # Using username for the viva safe fallback
+                "date_display": app.date.strftime("%A, %b %d"),  # e.g., "Monday, Oct 15"
+                "time": app.time.strftime("%I:%M %p"),
+                "appointment_type": getattr(app, 'appointment_type', 'Consultation')
+            })
+
+        return Response(formatted_data)
+
+    except ImportError:
+        return Response([])
