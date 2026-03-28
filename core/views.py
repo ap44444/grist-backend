@@ -20,7 +20,7 @@ from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calo
 from datetime import date
 from .models import UserProfile
 from django.utils import timezone
-from .services import calculate_weekly_progress
+from .services import calculate_weekly_progress, update_user_streak
 from rest_framework.views import APIView
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
@@ -589,6 +589,8 @@ def remove_water(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def track_meal(request, meal_slot_id):
+    print(f"DEBUG: Checking if MealSlot {meal_slot_id} exists in DB:",
+          MealSlot.objects.filter(id=meal_slot_id).exists())
     try:
         # The long query ensures a user can't accidentally check off someone else's meal!
         meal_slot = MealSlot.objects.get(
