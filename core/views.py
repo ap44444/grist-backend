@@ -880,34 +880,36 @@ def get_dietitian_appointments(request):
         todays_apps = Appointment.objects.filter(
             dietitian=dietitian_user,
             date=today,
-            status='CONFIRMED'
+            status__in=['PENDING', 'CONFIRMED']
         ).order_by('time')
 
         # 2. Fetch Future Appointments
         future_apps = Appointment.objects.filter(
             dietitian=dietitian_user,
             date__gt=today,
-            status='CONFIRMED'
+            status__in=['PENDING', 'CONFIRMED']
         ).order_by('date', 'time')
 
         # Helper function to format the data
         def format_app(app):
+            # Safely extract the URL string to prevent 500 crashes
+            pic_url = None
+            if hasattr(app.patient, 'profile') and app.patient.profile.profile_picture:
+                pic_url = app.patient.profile.profile_picture.url
+
             return {
                 "id": app.id,
                 "patient_name": app.patient.get_full_name() or app.patient.username,
-                "patient_image": getattr(app.patient.profile, 'profile_picture', None),
+                "patient_image": pic_url,  # <- CHANGED: Uses the safe URL
                 "time": app.time.strftime("%I:%M %p"),
-                "date_display": app.date.strftime("%b %d"),  # e.g., "Oct 15"
+                "date_display": app.date.strftime("%b %d"),
+                "status": app.status,      # <- ADDED: Frontend needs this!
                 "meeting_link": getattr(app, 'meeting_link', "")
             }
 
-        return Response({
-            "today": [format_app(app) for app in todays_apps],
-            "future": [format_app(app) for app in future_apps]
-        })
 
-    except ImportError:
-        # Failsafe until Team Member 2 merges their code
+    except Exception as e:
+        print(f"List Error: {e}")
         return Response({
             "today": [],
             "future": []
