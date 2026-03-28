@@ -57,7 +57,6 @@ from .services import get_active_clients_list
 from .services import get_dietitian_notifications
 from .services import get_dietitian_profile_stats
 from .services import get_dietitian_public_profile
-from .services import get_dietitian_dashboard_stats
 
 
 @extend_schema(
