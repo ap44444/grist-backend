@@ -1439,3 +1439,61 @@ class DieticianIdentityView(APIView):
             {"message": "Bio cleared."},
             status=status.HTTP_204_NO_CONTENT
         )
+
+
+#  APPOINTMENT MANAGEMENT (CONFIRM & COMPLETE) ---
+
+@extend_schema(
+    summary="Dietitian Confirm Appointment",
+    description="Dietitian accepts the booking and pastes their manual meeting link.",
+    request=inline_serializer(name='ConfirmAppt', fields={'meeting_link': serializers.URLField(required=True)}),
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def confirm_appointment(request, pk):
+    try:
+        # SECURITY: Ensure the dietitian can only confirm their OWN appointments
+        appointment = Appointment.objects.get(id=pk, dietitian=request.user)
+
+        manual_link = request.data.get('meeting_link')
+        if not manual_link:
+            return Response({"error": "Please provide a meeting link."}, status=400)
+
+        # Update the database
+        appointment.status = 'CONFIRMED'
+        appointment.meeting_link = manual_link
+        appointment.save()
+
+        return Response({
+            "status": "success",
+            "message": "Appointment confirmed and link sent to patient!"
+        })
+
+    except Appointment.DoesNotExist:
+        return Response({"error": "Appointment not found."}, status=404)
+
+
+@extend_schema(
+    summary="Dietitian Complete Appointment",
+    description="Marks an appointment as completed after the video call is done.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def complete_appointment(request, pk):
+    try:
+        # SECURITY: Ensure the dietitian can only complete their OWN appointments
+        appointment = Appointment.objects.get(id=pk, dietitian=request.user)
+
+        # Update the database to remove it from the 'Pending Plans' queue!
+        appointment.status = 'COMPLETED'
+        appointment.save()
+
+        return Response({
+            "status": "success",
+            "message": "Session marked as completed! Great job."
+        })
+
+    except Appointment.DoesNotExist:
+        return Response({"error": "Appointment not found."}, status=404)

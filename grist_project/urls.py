@@ -94,6 +94,8 @@ urlpatterns = [
                 #booking
                     path('api/dietitians/list/', core_views.get_all_dietitians, name='dietitian-list'),
                     path('api/dietitians/<int:dietitian_id>/availability/', core_views.get_dietitian_availability, name='dietitian_availability'),
+                    path('api/dietitian/appointments/<int:pk>/confirm/', core_views.confirm_appointment, name='confirm_appointment'),
+                    path('api/dietitian/appointments/<int:pk>/complete/', core_views.complete_appointment, name='complete_appointment'),
 
                 path('api/', include(router.urls)),
 

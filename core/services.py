@@ -13,6 +13,8 @@ from rest_framework.exceptions import ValidationError
 from core.models import CustomUser, DietitianReview
 from django.db.models import Avg
 from .models import RecipeIngredient
+from .models import DieticianProfile, Appointment, ChatMessage
+
 
 def calculate_weekly_progress(profile, timeframe='this_week'):
     """Does all the math for the user's progress screen and returns a dictionary."""
@@ -320,3 +322,49 @@ def update_user_streak(profile):
     # Save today as their new last active date
     profile.last_active_date = today
     profile.save()
+
+def get_dietitian_dashboard_stats(dietitian_user):
+    """Calculates all statistics for the Dietitian Home Dashboard."""
+
+    now = timezone.now()
+    today = now.date()
+    current_time = now.time()
+
+    #  Profile Check
+    dietitian_profile, _ = DieticianProfile.objects.get_or_create(user=dietitian_user)
+
+    # Database Counts
+    todays_clients_count = Appointment.objects.filter(
+        dietitian=dietitian_user, date=today, status__in=['PENDING', 'CONFIRMED']
+    ).count()
+
+    pending_plans_count = Appointment.objects.filter(
+        dietitian=dietitian_user, date=today, time__gte=current_time, status__in=['PENDING', 'CONFIRMED']
+    ).count()
+
+    unread_messages_count = ChatMessage.objects.filter(
+        request__dietitian=dietitian_profile
+    ).exclude(sender=dietitian_user).count()
+
+    #  Next Patient Check
+    next_appointment = Appointment.objects.filter(
+        dietitian=dietitian_user, date=today, time__gte=current_time, status__in=['PENDING', 'CONFIRMED']
+    ).order_by('time').first()
+
+    next_patient_data = None
+    if next_appointment:
+        next_patient_data = {
+            "patient_name": next_appointment.patient.username,
+            "time": next_appointment.time.strftime("%I:%M %p"),
+            "appointment_type": getattr(next_appointment, 'appointment_type', 'Consultation'),
+            "meeting_link": getattr(next_appointment, 'meeting_link', None)
+        }
+
+    # Return the packaged dictionary
+    return {
+        "dietitian_name": dietitian_user.username,
+        "todays_clients_count": todays_clients_count,
+        "pending_plans_count": pending_plans_count,
+        "unread_messages_count": unread_messages_count,
+        "next_patient": next_patient_data
+    }
