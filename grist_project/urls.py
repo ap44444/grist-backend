@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from core import views as core_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -94,4 +94,6 @@ urlpatterns = [
                 #booking
                     path('api/dietitians/list/', core_views.get_all_dietitians, name='dietitian-list'),
 
-              ] + router.urls
+                ('api/', include(router.urls)),
+
+              ]
