@@ -208,6 +208,46 @@ def clear_grocery_cart(request):
 
     return Response({"message": "Entire cart cleared successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+def format_recipe_response(recipe):
+    from .models import RecipeIngredient
+    import re
+
+    recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
+
+    total_protein = 0
+    total_carbs = 0
+    total_fats = 0
+    ingredients_list = []
+
+    for ri in recipe_ingredients:
+        factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
+        total_protein += float(ri.ingredient.protein) * factor
+        total_carbs += float(ri.ingredient.carbs) * factor
+        total_fats += float(ri.ingredient.fats) * factor
+
+        ingredients_list.append({
+            "name": ri.ingredient.name.title(),
+            "amount": f"{ri.quantity} {ri.unit}"
+        })
+
+    directions_list = [step.strip() for step in re.split(r'\n|\d+\.', recipe.instructions) if step.strip()]
+
+    return {
+        "id": recipe.id,
+        "title": recipe.title,
+        "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
+        "ready_in_minutes": recipe.prep_time_mins or 20,
+        "macros": {
+            "calories": recipe.calories,
+            "protein_g": int(total_protein),
+            "carbs_g": int(total_carbs),
+            "fats_g": int(total_fats)
+        },
+        "ingredients": ingredients_list,
+        "directions": directions_list,
+        "is_favorite": False
+    }
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -225,44 +265,9 @@ def request_substitution(request, meal_slot_id):
             # 2. Fetch the newly saved recipe
             meal_slot = MealSlot.objects.get(id=meal_slot_id, day_plan__week_plan__user__user=request.user)
             recipe = meal_slot.recipe
-            recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
 
-            # 3. Calculate Macros for the specific ingredients
-            total_protein = 0
-            total_carbs = 0
-            total_fats = 0
-            ingredients_list = []
-
-            for ri in recipe_ingredients:
-                factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
-                total_protein += float(ri.ingredient.protein) * factor
-                total_carbs += float(ri.ingredient.carbs) * factor
-                total_fats += float(ri.ingredient.fats) * factor
-
-                ingredients_list.append({
-                    "name": ri.ingredient.name.title(),
-                    "amount": f"{ri.quantity} {ri.unit}"
-                })
-
-            directions_list = [step.strip() for step in re.split(r'\n|\d+\.', recipe.instructions) if step.strip()]
-
-            # 4. Return the EXACT shape the Android `RecipeDetailResponse` expects!
-            return Response({
-                "id": recipe.id,
-                "title": recipe.title,
-                "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
-                "ready_in_minutes": recipe.prep_time_mins or 20,
-                "macros": {
-                    "calories": recipe.calories,
-                    "protein_g": sum(
-                        int(float(ri.ingredient.protein) * (ri.quantity / 100)) for ri in recipe_ingredients),
-                    "carbs_g": sum(int(float(ri.ingredient.carbs) * (ri.quantity / 100)) for ri in recipe_ingredients),
-                    "fats_g": sum(int(float(ri.ingredient.fats) * (ri.quantity / 100)) for ri in recipe_ingredients)
-                },
-                "ingredients": ingredients_list,
-                "directions": directions_list,
-                "is_favorite": False
-            }, status=200)
+            # 3. Use the helper function to format the data perfectly
+            return Response(format_recipe_response(recipe), status=200)
 
         except Exception as e:
             return Response({"error": f"Substitution succeeded but data retrieval failed: {str(e)}"}, status=500)
@@ -1196,45 +1201,8 @@ def get_meal_recipe_detail(request, meal_slot_id):
         )
         recipe = meal_slot.recipe
 
-        # 2. Fetch the real ingredients we saved during AI generation
-        from .models import RecipeIngredient
-        recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
+        return Response(format_recipe_response(recipe))
 
-        total_protein = 0
-        total_carbs = 0
-        total_fats = 0
-        ingredients_list = []
-
-        for ri in recipe_ingredients:
-            # Calculate macros based on quantity
-            factor = ri.quantity / 100.0 if ri.unit.lower() in ['g', 'ml'] else 1.0
-            total_protein += float(ri.ingredient.protein) * factor
-            total_carbs += float(ri.ingredient.carbs) * factor
-            total_fats += float(ri.ingredient.fats) * factor
-
-            ingredients_list.append({
-                "name": ri.ingredient.name.title(),
-                "amount": f"{ri.quantity} {ri.unit}"
-            })
-
-        # 3. Split instructions by newlines so Kotlin gets a clean List<String>
-        directions_list = [step.strip() for step in re.split(r'\n|\d+\.', recipe.instructions) if step.strip()]
-
-        return Response({
-            "id": recipe.id,
-            "title": recipe.title,
-            "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
-            "ready_in_minutes": recipe.prep_time_mins or 20,
-            "macros": {
-                "calories": recipe.calories,
-                "protein_g": int(total_protein),
-                "carbs_g": int(total_carbs),
-                "fats_g": int(total_fats)
-            },
-            "ingredients": ingredients_list,
-            "directions": directions_list,
-            "is_favorite": False
-        })
 
     except MealSlot.DoesNotExist:
         return Response({"error": "Meal not found."}, status=404)
