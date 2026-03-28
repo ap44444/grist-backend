@@ -9,6 +9,7 @@ from .models import (
     ShoppingList, ShoppingListItem, ChatMessage, PriceUpdate,
     RecipeIngredient,UserProfile
 )
+from .models import Appointment, ConsultationRequest, DietitianReview, SystemNotification, Reminder
 
 from .models import PatientNote
 
@@ -84,7 +85,7 @@ class PatientNoteAdmin(admin.ModelAdmin):
     list_filter = ('dietitian',)
 
 
-# STANDARD REGISTRATIONS
+# registration
 admin.site.register(WeeklyPlan)
 admin.site.register(DailyPlan)
 admin.site.register(CustomUser)
@@ -93,6 +94,13 @@ admin.site.register(ShoppingListItem)
 admin.site.register(ChatMessage)
 admin.site.register(PriceUpdate)
 admin.site.register(DieticianProfile)
-#GROCERY CART
+#grocerry cart
 admin.site.register(GroceryCart)
 admin.site.register(GroceryCartItem)
+
+#appoinments
+admin.site.register(Appointment)
+admin.site.register(ConsultationRequest)
+admin.site.register(DietitianReview)
+admin.site.register(SystemNotification)
+admin.site.register(Reminder)
