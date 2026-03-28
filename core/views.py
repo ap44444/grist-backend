@@ -1,92 +1,61 @@
-from django.db import transaction
 from .serializers import UserProfileSerializer
-from .ai_service import generate_and_save_meal
-from rest_framework import generics
-from rest_framework.permissions import AllowAny
-from .serializers import RegisterSerializer
-from core.models import CustomUser, DailyPlan, WeeklyPlan
-from django.shortcuts import get_object_or_404
-from .models import GroceryCart, GroceryCartItem
-from .serializers import GroceryCartSerializer, GroceryCartItemSerializer
-from .ai_service import substitute_ingredient_in_meal
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import status
-from .models import DailyPlan, MealSlot
-from .bmi_calculator import calculate_bmi, bmi_category
-from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calories
-from datetime import date
-from .models import UserProfile
-from django.utils import timezone
-from .services import calculate_weekly_progress, update_user_streak
-from rest_framework.views import APIView
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
+import re
 import socket
-from django.conf import settings
-from django.db.models import Avg
-from .models import DietitianReview
-from rest_framework.exceptions import ValidationError
-from django.shortcuts import get_object_or_404
-from rest_framework.parsers import MultiPartParser, FormParser
+from datetime import date
 import cloudinary.uploader
-from rest_framework.decorators import api_view, permission_classes, parser_classes
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
-from django.utils import timezone
-from .permissions import IsDietitian
-from drf_spectacular.utils import extend_schema
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .models import ConsultationRequest, ChatMessage
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import status
-from rest_framework import viewsets
-from .models import Appointment
-from .serializers import AppointmentSerializer
-from .services import get_dietitian_profile_stats
-from .services import get_active_clients_list
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
-from .services import get_dietitian_notifications
-from rest_framework import status
-from rest_framework import viewsets, permissions
-from .models import DietitianReview
-from .serializers import DietitianReviewSerializer
-from .services import create_dietitian_review
-from .services import get_dietitian_public_profile
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
-
+from django.conf import settings
 from django.db import transaction
-
+from django.db.models import Avg
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import inline_serializer
+from rest_framework import generics
+from rest_framework import serializers
+from rest_framework import status
 from rest_framework import viewsets
-from .models import PatientNote
-from .serializers import PatientNoteSerializer
-from .permissions import IsDietitian
-from .models import PatientNote
-from .serializers import PatientNoteSerializer
-from .permissions import IsDietitian
-import re
-from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
-from drf_spectacular.utils import extend_schema, inline_serializer
-from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from drf_spectacular.utils import extend_schema
-
-from .permissions import IsDietitian
-from .serializers import DieticianProfileSerializer
-import re
+from rest_framework.views import APIView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
+from core.models import CustomUser, WeeklyPlan
+from .ai_service import generate_and_save_meal
+from .ai_service import substitute_ingredient_in_meal
+from .bmi_calculator import calculate_bmi, bmi_category
+from .bmi_calculator import calculate_bmr, calculate_tdee, calculate_target_calories
+from .models import Appointment
+from .models import ConsultationRequest, ChatMessage
+from .models import DailyPlan
+from .models import DietitianReview
+from .models import GroceryCart, GroceryCartItem
 from .models import MealSlot, RecipeIngredient
-
+from .models import PatientNote
+from .models import UserProfile
+from .permissions import IsDietitian
+from .serializers import AppointmentSerializer
+from .serializers import DieticianProfileSerializer
+from .serializers import DietitianReviewSerializer
+from .serializers import GroceryCartSerializer, GroceryCartItemSerializer
+from .serializers import PatientNoteSerializer
+from .serializers import RegisterSerializer
+from .serializers import UserProfileSerializer
+from .services import calculate_weekly_progress, update_user_streak
+from .services import create_dietitian_review
+from .services import get_active_clients_list
+from .services import get_dietitian_notifications
+from .services import get_dietitian_profile_stats
+from .services import get_dietitian_public_profile
 
 
 @extend_schema(
@@ -214,6 +183,7 @@ def delete_cart_item(request, item_id):
     item.delete()
     return Response({"message": "Item deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+
 @extend_schema(
     summary="Substitute an Ingredient",
     request=inline_serializer(name='SubRequest', fields={'ingredient_to_replace': serializers.CharField()}),
@@ -283,11 +253,12 @@ def request_substitution(request, meal_slot_id):
                 "image_url": recipe.image_url or "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg",
                 "ready_in_minutes": recipe.prep_time_mins or 20,
                 "macros": {
-                "calories": recipe.calories,
-                "protein_g": sum(int(float(ri.ingredient.protein) * (ri.quantity/100)) for ri in recipe_ingredients),
-                "carbs_g": sum(int(float(ri.ingredient.carbs) * (ri.quantity/100)) for ri in recipe_ingredients),
-                "fats_g": sum(int(float(ri.ingredient.fats) * (ri.quantity/100)) for ri in recipe_ingredients)
-            },
+                    "calories": recipe.calories,
+                    "protein_g": sum(
+                        int(float(ri.ingredient.protein) * (ri.quantity / 100)) for ri in recipe_ingredients),
+                    "carbs_g": sum(int(float(ri.ingredient.carbs) * (ri.quantity / 100)) for ri in recipe_ingredients),
+                    "fats_g": sum(int(float(ri.ingredient.fats) * (ri.quantity / 100)) for ri in recipe_ingredients)
+                },
                 "ingredients": ingredients_list,
                 "directions": directions_list,
                 "is_favorite": False
@@ -297,6 +268,8 @@ def request_substitution(request, meal_slot_id):
             return Response({"error": f"Substitution succeeded but data retrieval failed: {str(e)}"}, status=500)
     else:
         return Response(result, status=400)
+
+
 # Loging out a user
 @extend_schema(
     summary="User Logout",
@@ -410,6 +383,7 @@ def get_dashboard_data(request):
             "weekly_balance_array": weekly_balance
         })
 
+
 @extend_schema(
     summary="Get Profile Stats (BMI)",
     responses={200: OpenApiTypes.OBJECT}
@@ -445,6 +419,7 @@ def get_profile_data(request):
         "bmi": bmi,
         "bmi_category": category
     })
+
 
 @extend_schema(
     summary="Lock in Calorie Targets",
@@ -490,8 +465,8 @@ def calculate_and_save_calories(request):
         "metrics": {
             "age": age,
             "bmr": round(bmr),
-            "tdee": round(tdee),          # How much they burn existing
-            "target_calories": daily_limit # Their new daily goal
+            "tdee": round(tdee),  # How much they burn existing
+            "target_calories": daily_limit  # Their new daily goal
         }
     })
 
@@ -585,7 +560,8 @@ def remove_water(request):
 
     except DailyPlan.DoesNotExist:
         return Response({"error": "No active meal plan found for today."}, status=400)
-    
+
+
 # meal tracker
 @extend_schema(summary="Track Meal", responses={200: OpenApiTypes.OBJECT})
 @api_view(['POST'])
@@ -612,6 +588,7 @@ def track_meal(request, meal_slot_id):
 
     except MealSlot.DoesNotExist:
         return Response({"error": "Meal slot not found."}, status=404)
+
 
 @extend_schema(
     summary="Get Weekly Progress Stats",
@@ -668,6 +645,8 @@ def update_profile(request):
         "message": "Profile updated with all Android onboarding data!",
         "received_keys": list(data.keys())  # Helps the Android dev debug
     })
+
+
 class UserProfileCRUDView(APIView):
     """
     Handles Create (handled by registration), Read, Update, and Delete
@@ -703,9 +682,11 @@ class UserProfileCRUDView(APIView):
             {"message": "User account and profile permanently deleted."},
             status=status.HTTP_204_NO_CONTENT
         )
+
+
 @extend_schema(summary="Health Check", responses={200: OpenApiTypes.OBJECT})
 @api_view(['GET'])
-@permission_classes([AllowAny]) # Anyone can check if the server is up!
+@permission_classes([AllowAny])  # Anyone can check if the server is up!
 def health_check(request):
     return Response({
         "status": "online",
@@ -759,8 +740,6 @@ def submit_review(request, dietitian_id):
     description="Returns all reviews for a dietitian and their average rating.",
     responses={200: OpenApiTypes.OBJECT}
 )
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])  # This tells Django to expect a FILE, not JSON
@@ -798,12 +777,13 @@ class GoogleLogin(SocialLoginView):
     client_class = OAuth2Client
     callback_url = ''
 
+
 @extend_schema(
     summary="Get Dietitian Dashboard Data",
     responses={200: OpenApiTypes.OBJECT}
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsDietitian]) # SECURITY: Only Dietitians allowed!
+@permission_classes([IsAuthenticated, IsDietitian])  # SECURITY: Only Dietitians allowed!
 def get_dietitian_dashboard(request):
     # 1. Get current time context
     now = timezone.now()
@@ -925,6 +905,7 @@ def get_dietitian_appointments(request):
             "future": []
         })
 
+
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
     permission_classes = [IsAuthenticated]
@@ -940,6 +921,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Auto-assign the logged-in user as the patient
         serializer.save(patient=self.request.user)
+
 
 @extend_schema(
     summary="Get Dietitian Profile & Active Clients",
@@ -970,6 +952,7 @@ def get_active_clients_view(request):
     clients_data = get_active_clients_list(request.user, search_query)
 
     return Response(clients_data)
+
 
 @extend_schema(
     summary="Get Dietitian System Notifications",
@@ -1012,6 +995,7 @@ def submit_review_view(request):
         return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 @extend_schema(
     summary="Get Dietitian Reviews",
@@ -1059,6 +1043,7 @@ def delete_review_view(request, review_id):
         "message": "Review deleted successfully."
     }, status=status.HTTP_204_NO_CONTENT)
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_dietitian_reviews(request, dietitian_id):
@@ -1074,6 +1059,7 @@ def get_dietitian_reviews(request, dietitian_id):
         "average_rating": round(avg_rating, 1),
         "reviews": DietitianReviewSerializer(reviews, many=True).data
     })
+
 
 @extend_schema(
     summary="Get Dietitian Profile (Patient View)",
@@ -1105,6 +1091,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['is_new_user'] = False
         return data
 
+
 class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
@@ -1116,7 +1103,6 @@ def get_daily_plan_schedule(request):
     profile = request.user.profile
     today = timezone.now().date()
     today_name = today.strftime('%A')
-
 
     # The default slots the Android app wants to see
     default_slots = [
@@ -1259,6 +1245,8 @@ def get_meal_recipe_detail(request, meal_slot_id):
 @permission_classes([IsAuthenticated])
 def toggle_favorite_recipe(request, recipe_id):
     return Response({"status": "success", "message": "Saved to Favorites!"})
+
+
 class PatientNoteViewSet(viewsets.ModelViewSet):
     """
     Full CRUD for Dietitian Patient Notes.
@@ -1288,6 +1276,7 @@ class PatientNoteViewSet(viewsets.ModelViewSet):
 from .models import Reminder
 from .serializers import ReminderSerializer
 
+
 class ReminderViewSet(viewsets.ModelViewSet):
     """
     CRUD for User Reminders.
@@ -1301,6 +1290,7 @@ class ReminderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
 
 # --- MEMBER 4B: DIETICIAN MEDIA CRUD ---
 @extend_schema(tags=['Dietician Management'])
@@ -1333,7 +1323,7 @@ class DietitianMediaView(APIView):
     def post(self, request):
         if 'image' not in request.FILES:
             return Response({"error": "No image provided"}, status=400)
-        
+
         upload_data = cloudinary.uploader.upload(request.FILES['image'], folder="dietitian_pro_pics")
         profile = request.user.profile
         profile.profile_picture = upload_data['secure_url']
@@ -1350,9 +1340,9 @@ class DietitianMediaView(APIView):
         profile.save()
         return Response({"message": "Photo removed."}, status=204)
 
+
 @extend_schema(tags=['Dietician Management'])
 class DieticianIdentityView(APIView):
-
     permission_classes = [IsAuthenticated, IsDietitian]
 
     @extend_schema(
