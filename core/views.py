@@ -1102,6 +1102,52 @@ class CustomLoginView(TokenObtainPairView):
 
 
 @extend_schema(
+    summary="Get Dietitian Availability",
+    description="Returns available time slots for a specific date.",
+    parameters=[OpenApiParameter("date", OpenApiTypes.STR, description="YYYY-MM-DD", required=False)],
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_dietitian_availability(request, dietitian_id):
+    # Default to today if the Android app doesn't send a date
+    date_str = request.query_params.get('date', timezone.now().date().isoformat())
+
+    try:
+        #  Attempt to search the database
+        booked_appointments = Appointment.objects.filter(
+            dietitian_id=dietitian_id,
+            date=date_str,
+            status__in=['PENDING', 'CONFIRMED']
+        )
+
+        #  Extract just the times that are taken
+        booked_times = [app.time.strftime("%H:%M:%S") for app in booked_appointments]
+
+        #  Define standard clinic hours (9 AM to 4 PM, skipping 12 PM for lunch)
+        all_slots = [
+            "09:00:00", "10:00:00", "11:00:00",
+            "13:00:00", "14:00:00", "15:00:00", "16:00:00"
+        ]
+
+        #  Filter out the booked times to find what is actually available!
+        available_slots = [slot for slot in all_slots if slot not in booked_times]
+
+        return Response({
+            "dietitian_id": dietitian_id,
+            "date": date_str,
+            "booked_times": booked_times,
+            "available_slots": available_slots
+        })
+
+    except Exception as e:
+        # 5. Catch any date format crashes and send a clean JSON error
+        return Response(
+            {"error": f"Invalid date format received: '{date_str}'. Please strictly use YYYY-MM-DD."},
+            status=400
+        )
+
+@extend_schema(
     summary="Get List of All Dietitians",
     description="Returns a list of all dietitians with their bio, picture, and average rating.",
     responses={200: OpenApiTypes.OBJECT}

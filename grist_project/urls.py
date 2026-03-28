@@ -93,6 +93,7 @@ urlpatterns = [
                     path('api/dietitian/manage/identity/', core_views.DieticianIdentityView.as_view(), name='dietitian_identity_crud'),
                 #booking
                     path('api/dietitians/list/', core_views.get_all_dietitians, name='dietitian-list'),
+                    path('api/dietitians/<int:dietitian_id>/availability/', core_views.get_dietitian_availability, name='dietitian_availability'),
 
                 path('api/', include(router.urls)),
 
