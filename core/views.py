@@ -897,7 +897,8 @@ def get_dietitian_appointments(request):
                 "patient_name": app.patient.get_full_name() or app.patient.username,
                 "patient_image": getattr(app.patient.profile, 'profile_picture', None),
                 "time": app.time.strftime("%I:%M %p"),
-                "date_display": app.date.strftime("%b %d")  # e.g., "Oct 15"
+                "date_display": app.date.strftime("%b %d"),  # e.g., "Oct 15"
+                "meeting_link": app.meeting_lin
             }
 
         return Response({
