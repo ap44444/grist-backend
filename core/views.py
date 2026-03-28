@@ -438,7 +438,7 @@ def get_profile_data(request):
     return Response({
         "user_id": request.user.id,
         "full_name": request.user.get_full_name() or request.user.username,
-        "profile_picture_url": None,
+        "profile_picture_url": pic_url,
         "streak_days": profile.current_streak,
         "bmi": bmi,
         "bmi_category": category
