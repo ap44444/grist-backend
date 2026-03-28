@@ -802,12 +802,13 @@ def get_dietitian_dashboard(request):
 
     # 3. "Messages" Badge: Count messages sent by patients
     try:
+        # We query by the dietitian's user ID through the request relationship
         unread_messages_count = ChatMessage.objects.filter(
-            request__dietitian=dietitian_profile
+            request__dietitian__user=dietitian_user
         ).exclude(sender=dietitian_user).count()
     except Exception as e:
         print(f"Message Count Error: {e}")
-        unread_messages_count = 0  # Bulletproof fallback!
+        unread_messages_count = 0
 
     # 4. "Today's Clients" & "Next Patient"
     # We use a try/except block here. This ensures YOUR code works right now,
