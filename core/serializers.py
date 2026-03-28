@@ -49,8 +49,8 @@ class GroceryCartSerializer(serializers.ModelSerializer):
         fields = ['id', 'updated_at', 'items']
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    patient_name = serializers.CharField(source='patient.get_full_name', read_only=True)
-    dietitian_name = serializers.CharField(source='dietitian.get_full_name', read_only=True)
+    patient_name = serializers.CharField(source='patient.username', read_only=True)
+    dietitian_name = serializers.CharField(source='dietitian.username', read_only=True)
 
     class Meta:
         model = Appointment
