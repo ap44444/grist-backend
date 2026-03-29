@@ -807,7 +807,7 @@ def get_dietitian_dashboard(request):
     # 3. "Messages" Badge: Count messages sent by patients
     try:
         #  Find all Consultation Requests belonging to this dietitian
-        my_consultations = ConsultationRequest.objects.filter(dietitian=dietitian_profile)
+        my_consultations = ConsultationRequest.objects.filter(dietician=dietitian_profile)
 
         # Count messages that belong to those specific requests
         unread_messages_count = ChatMessage.objects.filter(

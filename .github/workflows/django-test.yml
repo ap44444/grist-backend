@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     # 1. Spin up a temporary isolated Database for testing
-    # We specifically use pgvector image because our AI embedding models require it!
     services:
       postgres:
         image: pgvector/pgvector:pg16

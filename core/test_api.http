@@ -1,4 +1,4 @@
-### 1. Login to get your Token
+### 1. Login to Production
 POST https://grist-diet-app-production.up.railway.app/api/login/
 Content-Type: application/json
 
@@ -8,41 +8,40 @@ Content-Type: application/json
 }
 
 > {%
-    // This script catches the token from your live server and saves it!
-    client.global.set("auth_token", response.body.access);
+    client.global.set("prod_token", response.body.access);
+    client.log("✅ Step 1: Token Saved!");
 %}
-### 2. Request a Morning Snack (S1)
-GET https://grist-diet-app-production.up.railway.app/api/recipe/request/?type=s1
-Authorization: Bearer {{auth_token}}
-Accept: application/json
 
-### Test Google Auth Endpoint (The Bouncer Test)
-POST https://grist-diet-app-production.up.railway.app/api/auth/google/
+### 2. Generate a Production Lunch
+GET https://grist-diet-app-production.up.railway.app/api/recipe/request/?type=lunch
+Authorization: Bearer {{prod_token}}
+
+> {%
+    client.global.set("prod_meal_id", response.body.recipe_id);
+    client.global.set("prod_ingredient", response.body.ingredients[0].name);
+    client.log("✅ Step 2: Meal Generated!");
+%}
+
+### 3. Get Production Meal Slot ID
+GET https://grist-diet-app-production.up.railway.app/api/plan/today/
+Authorization: Bearer {{prod_token}}
+
+> {%
+    var meals = response.body.meals;
+    for (var i = 0; i < meals.length; i++) {
+        if (meals[i].type_code === "L") {
+            client.global.set("prod_slot_id", meals[i].id);
+            client.log("✅ Step 3: Slot ID Found!");
+            break;
+        }
+    }
+%}
+
+### 4. Execute the Substitution
+POST https://grist-diet-app-production.up.railway.app/api/meals/{{prod_slot_id}}/substitute/
+Authorization: Bearer {{prod_token}}
 Content-Type: application/json
 
 {
-  "id_token": "this_is_a_completely_fake_token_to_test_the_bouncer"
+  "ingredient_to_replace": "{{prod_ingredient}}"
 }
-
-### Test Standard Dietitian Registration
-POST https://grist-diet-app-production.up.railway.app/api/register/
-Content-Type: application/json
-
-{
-  "username": "hehe",
-  "email": "doctor_test@example.com",
-  "password": "securepassword123",
-  "role": "DIETITIAN"
-}
-
-### Upload Profile Picture
-POST https://grist-diet-app-production.up.railway.app/api/profile/upload-picture/
-Authorization: Bearer {{auth_token}}
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-
---WebAppBoundary
-Content-Disposition: form-data; name="image"; filename="profile.jpeg"
-Content-Type: image/jpeg
-
-< /Users/mahimasenarathna/Downloads/profile.jpeg
---WebAppBoundary--
