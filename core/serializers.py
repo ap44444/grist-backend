@@ -90,7 +90,7 @@ class PatientNoteSerializer(serializers.ModelSerializer):
         model = PatientNote
         fields = ['id', 'dietitian', 'dietitian_name', 'patient', 'patient_name',
                   'patient_username', 'note_text', 'created_at', 'updated_at']
-        read_only_fields = ['dietitian', 'patient', 'created_at', 'updated_at']
+        read_only_fields = ['dietitian', 'created_at', 'updated_at']
 
 
 # --- MEMBER 5: CUSTOM USER REMINDERS ---

@@ -1331,10 +1331,10 @@ class PatientNoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = PatientNote.objects.filter(dietitian=self.request.user)
 
-        # Changed from patient_id to patient__username
-        patient_username = self.request.query_params.get('patient_username')
-        if patient_username:
-            queryset = queryset.filter(patient__username=patient_username)
+
+        patient_id = self.request.query_params.get('patient')
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
 
         return queryset
 
