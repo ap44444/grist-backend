@@ -1518,7 +1518,7 @@ def complete_appointment(request, pk):
 @permission_classes([IsAuthenticated, IsDietitian])
 def get_pending_appointments(request):
     try:
-        from .models import Appointment
+
 
         # Fetch only the appointments that need the doctor's approval
         pending_apps = Appointment.objects.filter(
@@ -1566,3 +1566,43 @@ def cancel_appointment(request, pk):
 
     except Appointment.DoesNotExist:
         return Response({"error": "Appointment not found."}, status=404)
+
+
+@extend_schema(
+    summary="Get Past Appointments for Dietitian",
+    description="Returns a list of all appointments marked as COMPLETED.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def get_past_appointments(request):
+    try:
+
+
+        # We filter for COMPLETED and order by date/time descending (newest first)
+        past_apps = Appointment.objects.filter(
+            dietitian=request.user,
+            status='COMPLETED'
+        ).order_by('-date', '-time')
+
+        # Helper to keep the data shape identical to the upcoming list
+        def format_app(app):
+            pic_url = None
+            if hasattr(app.patient, 'profile') and app.patient.profile.profile_picture:
+                pic_url = app.patient.profile.profile_picture.url
+
+            return {
+                "id": app.id,
+                "patient_name": app.patient.username,
+                "patient_image": pic_url,
+                "time": app.time.strftime("%I:%M %p"),
+                "date_display": app.date.strftime("%b %d"),
+                "status": app.status,
+                "meeting_link": getattr(app, 'meeting_link', "")
+            }
+
+        return Response([format_app(app) for app in past_apps])
+
+    except Exception as e:
+        print(f"Past Appointments Error: {e}")
+        return Response([])

@@ -98,6 +98,7 @@ urlpatterns = [
                     path('api/dietitian/appointments/<int:pk>/complete/', core_views.complete_appointment, name='complete_appointment'),
                     path('api/dietitian/appointments/pending/', core_views.get_pending_appointments, name='pending_appointments'),
                     path('api/dietitian/appointments/<int:pk>/cancel/', core_views.cancel_appointment, name='cancel_appointment'),
+                    path('api/dietitian/appointments/past/', core_views.get_past_appointments, name='past_appointments'),
 
                 path('api/', include(router.urls)),
 
