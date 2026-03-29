@@ -549,8 +549,8 @@ def remove_water(request):
     try:
         daily_plan = DailyPlan.objects.get(
             week_plan__user=profile,
-            week_plan_start_date_lte=today,
-            week_plan_end_date_gte=today,
+            week_plan__start_date__lte=today,
+            week_plan__end_date__gte=today,
             day_name=today_name
         )
 
@@ -795,27 +795,31 @@ def get_dietitian_dashboard(request):
     now = timezone.now()
     today = now.date()
     current_time = now.time()
-
     dietitian_user = request.user
+
+    todays_clients_count = 0
+    pending_plans_count = 0
+    unread_messages_count = 0
+    next_patient_data = None
 
     dietitian_profile, created = DieticianProfile.objects.get_or_create(user=dietitian_user)
 
     # 3. "Messages" Badge: Count messages sent by patients
     try:
-        # We query by the dietitian's user ID through the request relationship
+        #  Find all Consultation Requests belonging to this dietitian
+        my_consultations = ConsultationRequest.objects.filter(dietitian=dietitian_profile)
+
+        # Count messages that belong to those specific requests
         unread_messages_count = ChatMessage.objects.filter(
-            request__dietitian__user=dietitian_user
+            request__in=my_consultations
         ).exclude(sender=dietitian_user).count()
+
     except Exception as e:
         print(f"Message Count Error: {e}")
         unread_messages_count = 0
 
     # 4. "Today's Clients" & "Next Patient"
-    # We use a try/except block here. This ensures YOUR code works right now,
-    # and automatically links up the moment Team Member 2 pushes their Appointment model!
     try:
-
-
         # Count how many appointments are scheduled for today
         todays_clients_count = Appointment.objects.filter(
             dietitian=dietitian_user,
@@ -876,7 +880,6 @@ def get_dietitian_appointments(request):
     dietitian_user = request.user
 
     try:
-        from .models import Appointment
 
         # 1. Fetch Today's Appointments
         todays_apps = Appointment.objects.filter(
@@ -1539,7 +1542,9 @@ def get_pending_appointments(request):
 
         return Response(formatted_data)
 
-    except ImportError:
+
+    except Exception as e:
+        print(f"Pending List Error: {e}")
         return Response([])
 
 
