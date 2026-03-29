@@ -1451,7 +1451,7 @@ class DieticianIdentityView(APIView):
 
         return Response(
             {"message": "Bio cleared."},
-            status=status.HTTP_204_NO_CONTENT
+            status=status.HTTP_200_OK
         )
 
 
