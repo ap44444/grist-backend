@@ -78,13 +78,7 @@ class PatientNoteSerializer(serializers.ModelSerializer):
     dietitian_name = serializers.CharField(source='dietitian.username', read_only=True)
     patient_name = serializers.CharField(source='patient.username', read_only=True)
 
-    # This lets the frontend SEND a username string instead of a numeric ID
-    patient_username = serializers.SlugRelatedField(
-        slug_field='username',
-        queryset=CustomUser.objects.all(),
-        source='patient',
-        write_only=True
-    )
+
 
     class Meta:
         model = PatientNote
@@ -111,3 +105,9 @@ class DieticianProfileSerializer(serializers.ModelSerializer):
         model = DieticianProfile
         fields = ['license_number', 'bio', 'is_verified']
         read_only_fields = ['is_verified']
+
+    def get_profile_picture(self, obj):
+        if obj.profile_picture:
+            # Check if it's a Cloudinary object with a .url property, otherwise return it as a string
+            return obj.profile_picture.url if hasattr(obj.profile_picture, 'url') else str(obj.profile_picture)
+        return None
