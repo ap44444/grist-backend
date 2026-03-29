@@ -814,7 +814,7 @@ def get_dietitian_dashboard(request):
     # We use a try/except block here. This ensures YOUR code works right now,
     # and automatically links up the moment Team Member 2 pushes their Appointment model!
     try:
-        from .models import Appointment
+
 
         # Count how many appointments are scheduled for today
         todays_clients_count = Appointment.objects.filter(
@@ -902,10 +902,10 @@ def get_dietitian_appointments(request):
             return {
                 "id": app.id,
                 "patient_name": app.patient.get_full_name() or app.patient.username,
-                "patient_image": pic_url,  # <- CHANGED: Uses the safe URL
+                "patient_image": pic_url,
                 "time": app.time.strftime("%I:%M %p"),
                 "date_display": app.date.strftime("%b %d"),
-                "status": app.status,      # <- ADDED: Frontend needs this!
+                "status": app.status,
                 "meeting_link": getattr(app, 'meeting_link', "")
             }
 
@@ -1606,3 +1606,31 @@ def get_past_appointments(request):
     except Exception as e:
         print(f"Past Appointments Error: {e}")
         return Response([])
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsDietitian])
+def get_patient_detail_for_dietitian(request, patient_id):
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        # 1. Get the patient user and their profile
+        patient = User.objects.get(id=patient_id)
+        profile = patient.profile  # Assuming standard profile relation
+
+        # 2. Get the Health Goals (Calculated targets)
+        # Assuming you store these in the profile or a separate Goals model
+
+        return Response({
+            "name": patient.get_full_name() or patient.username,
+            "email": patient.email,
+            "age": getattr(profile, 'age', 0),
+            "height": getattr(profile, 'height', 0),
+            "weight": getattr(profile, 'weight', 0),
+            "target_weight": getattr(profile, 'target_weight', 0),
+            "daily_calorie_target": getattr(profile, 'daily_calories', 1800),
+            "dietary_preferences": ["Vegetarian", "No Shellfish"]  # Replace with real field
+        })
+    except User.DoesNotExist:
+        return Response({"error": "Patient not found"}, status=404)

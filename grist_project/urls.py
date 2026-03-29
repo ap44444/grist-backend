@@ -80,6 +80,7 @@ urlpatterns = [
 
                   # Dietitian clients
                   path('api/dietitian/clients/', core_views.get_active_clients_view, name='active_clients_list'),
+                  path('api/dietitian/patients/<int:patient_id>/', core_views.get_patient_detail_for_dietitian, name='patient_detail'),
 
                 # Daily tracking
                     path('api/track/water/', core_views.track_water, name='track_water'),                 # ADD WATER
