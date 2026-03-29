@@ -904,6 +904,7 @@ def get_dietitian_appointments(request):
 
             return {
                 "id": app.id,
+                "patient_id": app.patient.id,
                 "patient_name": app.patient.get_full_name() or app.patient.username,
                 "patient_image": pic_url,
                 "time": app.time.strftime("%I:%M %p"),
@@ -1534,6 +1535,7 @@ def get_pending_appointments(request):
         for app in pending_apps:
             formatted_data.append({
                 "id": app.id,
+                "patient_id": app.patient.id,
                 "patient_name": app.patient.username,  # Using username for the viva safe fallback
                 "date_display": app.date.strftime("%A, %b %d"),  # e.g., "Monday, Oct 15"
                 "time": app.time.strftime("%I:%M %p"),
@@ -1598,6 +1600,7 @@ def get_past_appointments(request):
 
             return {
                 "id": app.id,
+                "patient_id": app.patient.id,
                 "patient_name": app.patient.username,
                 "patient_image": pic_url,
                 "time": app.time.strftime("%I:%M %p"),
@@ -1619,23 +1622,43 @@ def get_patient_detail_for_dietitian(request, patient_id):
     try:
         from django.contrib.auth import get_user_model
         User = get_user_model()
-
-        # 1. Get the patient user and their profile
         patient = User.objects.get(id=patient_id)
-        profile = patient.profile  # Assuming standard profile relation
+        profile = getattr(patient, 'profile', None)
 
-        # 2. Get the Health Goals (Calculated targets)
-        # Assuming you store these in the profile or a separate Goals model
+        if not profile:
+            return Response({"error": "Patient profile not setup"}, status=404)
+
+        #  AGE CALCULATION
+        calculated_age = "N/A"
+        if profile.date_of_birth:
+            today = date.today()
+            dob = profile.date_of_birth
+            # Subtracts 1 from the year difference if the birthday hasn't happened yet this year
+            calculated_age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+        # Helper to join lists (Allergies, etc.) for Maheen's UI
+        def join_list(field_name):
+            data_list = getattr(profile, field_name, [])
+            return ", ".join(data_list) if data_list else "None"
 
         return Response({
+            "id": patient.id,
             "name": patient.get_full_name() or patient.username,
             "email": patient.email,
-            "age": getattr(profile, 'age', 0),
-            "height": getattr(profile, 'height', 0),
-            "weight": getattr(profile, 'weight', 0),
-            "target_weight": getattr(profile, 'target_weight', 0),
-            "daily_calorie_target": getattr(profile, 'daily_calories', 1800),
-            "dietary_preferences": ["Vegetarian", "No Shellfish"]  # Replace with real field
+            "age": calculated_age,
+            "country": getattr(profile, 'country', "N/A"),
+            "height_cm": getattr(profile, 'height', None),
+            "weight_kg": getattr(profile, 'weight', None),
+            "target_weight_kg": getattr(profile, 'target_weight', None),
+            "calorie_target": getattr(profile, 'target_calories', None),
+            "primary_goal": getattr(profile, 'primary_goal', "N/A"),
+            "activity_level": getattr(profile, 'activity_level', "N/A"),
+            "dietary_preference": getattr(profile, 'dietary_preference', "N/A"),
+            "meals_per_day": getattr(profile, 'meals_per_day', 3),
+            "allergies": join_list('allergies'),
+            "foods_to_avoid": join_list('foods_to_avoid'),
+            "medical_conditions": join_list('medical_conditions'),
+            "medications": join_list('medications')
         })
     except User.DoesNotExist:
         return Response({"error": "Patient not found"}, status=404)
